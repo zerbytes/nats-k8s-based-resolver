@@ -110,7 +110,7 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Push update to NATS if JWT changed
 	// -----------------------------------------------------------------
 	if jwtChanged {
-		if err := pushAccountJWT(jwtStr); err != nil {
+		if err := pushJWT(jwtStr); err != nil {
 			log.Error(err, "failed to push account JWT to NATS, will retry next reconcile")
 			// don't fail reconcile; best effort
 		} else {
@@ -153,7 +153,7 @@ func (r *NatsAccountReconciler) ensureAccountJWT(ctx context.Context, a *natsv1.
 	}
 
 	// 3. **LOAD OR CREATE OPERATOR KEY** and sign the Account JWT
-	opKp, _, err := getOrCreateOperatorKP(ctx, r.Client, a.Namespace)
+	opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, a.Namespace)
 	if err != nil {
 		return "", "", "", err
 	}

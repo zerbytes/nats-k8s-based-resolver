@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
@@ -170,6 +171,25 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	// Bootstrap: Operator key & $SYS account Secret
+	// Use POD_NAMESPACE (set by the Helm chart) or fallback "default"
+	ns := os.Getenv("POD_NAMESPACE")
+	if ns == "" {
+		ns = "default"
+	}
+	ctx := context.Background()
+
+	opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, mgr.GetClient(), ns)
+	if err != nil {
+		setupLog.Error(err, "bootstrap: operator key")
+		os.Exit(1)
+	}
+
+	if _, _, _, err := controllers.EnsureSysAccount(ctx, mgr.GetClient(), ns, opKP, false); err != nil {
+		setupLog.Error(err, "bootstrap: $SYS account")
 		os.Exit(1)
 	}
 

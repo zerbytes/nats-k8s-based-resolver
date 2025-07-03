@@ -15,11 +15,12 @@ import (
 const (
 	// Default secret name; can override with env OPERATOR_SECRET_NAME
 	operatorSecretDefault = "nats-operator-jwt"
+	sysSecretName         = "nats-sys-account-jwt"
 )
 
-// getOrCreateOperatorKP ensures a Secret with operator seed & jwt exists and
+// GetOrCreateOperatorKP ensures a Secret with operator seed & jwt exists and
 // returns a loaded nkeys.KeyPair plus JWT string.
-func getOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nkeys.KeyPair, string, error) {
+func GetOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nkeys.KeyPair, string, error) {
 	secretName := os.Getenv("OPERATOR_SECRET_NAME")
 	if secretName == "" {
 		secretName = operatorSecretDefault
@@ -78,4 +79,76 @@ func getOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nke
 	}
 
 	return kp, jwtStr, nil
+}
+
+// EnsureSysAccount returns (sysKP, sysJWT string, sysPub string).
+// If rotate==true it generates a *new* account keypair & JWT, replacing
+// whatever is stored in the Secret.
+func EnsureSysAccount(ctx context.Context, c client.Client, ns string, opKp nkeys.KeyPair, rotate bool) (nkeys.KeyPair, string, string, error) {
+	var sec corev1.Secret
+	err := c.Get(ctx, types.NamespacedName{Name: sysSecretName, Namespace: ns}, &sec)
+
+	// (A) reuse existing if present & no rotation requested
+	if err == nil && !rotate {
+		seedB, okSeed := sec.Data["seed"]
+		jwtB, okJwt := sec.Data["jwt"]
+		pubB, okPub := sec.Data["pub"]
+		if okSeed && okJwt && okPub {
+			kp, err := nkeys.FromSeed(seedB)
+			if err == nil {
+				return kp, string(jwtB), string(pubB), nil
+			}
+		}
+	}
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, "", "", err
+	}
+
+	// (B) generate fresh keypair / JWT (first boot or rotation requested)
+	sysKP, _ := nkeys.CreateAccount()
+	sysPub, _ := sysKP.PublicKey()
+
+	ac := natsjwt.NewAccountClaims(sysPub)
+	ac.Name = "$SYS"
+	ac.Limits = natsjwt.OperatorLimits{} // minimal limits – adjust as desired
+	sysJWT, _ := ac.Encode(opKp)         // signed by Operator
+	sysSeed, _ := sysKP.Seed()
+
+	// build / update Secret data map
+	data := map[string][]byte{
+		"seed": []byte(sysSeed),
+		"jwt":  []byte(sysJWT),
+		"pub":  []byte(sysPub),
+	}
+
+	if errors.IsNotFound(err) {
+		// create Secret first time
+		newSec := &corev1.Secret{}
+		newSec.Name = sysSecretName
+		newSec.Namespace = ns
+		newSec.Type = corev1.SecretTypeOpaque
+		newSec.Data = data
+		if err := c.Create(ctx, newSec); err != nil {
+			return nil, "", "", err
+		}
+	} else {
+		// patch existing if any bytes differ
+		changed := false
+		for k, v := range data {
+			if existing, ok := sec.Data[k]; !ok || string(existing) != string(v) {
+				sec.Data[k] = v
+				changed = true
+			}
+		}
+		if changed {
+			if err := c.Update(ctx, &sec); err != nil {
+				return nil, "", "", err
+			}
+		}
+	}
+
+	// Optionally push updated JWT to NATS immediately (best effort)
+	_ = pushJWT(sysJWT) // ignore error at bootstrap
+
+	return sysKP, sysJWT, sysPub, nil
 }

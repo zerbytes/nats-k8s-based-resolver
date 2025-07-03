@@ -49,9 +49,3 @@ func pushJWT(jwt string) error {
 	_, err = nc.Request(subj, []byte(jwt), 2*time.Second)
 	return err
 }
-
-// pushAccountJWT publishes the JWT on $SYS.REQ.CLAIMS.UPDATE.
-// It waits up to 2s for an ack but ignores the reply content.
-func pushAccountJWT(jwt string) error {
-	return pushJWT(jwt)
-}
