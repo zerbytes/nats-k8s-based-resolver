@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Utility functions for the e2e tests
 package utils
 
 import (
@@ -24,7 +25,7 @@ import (
 	"os/exec"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
+	. "github.com/onsi/ginkgo/v2" //nolint:staticcheck
 )
 
 const (
@@ -197,7 +198,7 @@ func GetProjectDir() (string, error) {
 	if err != nil {
 		return wd, err
 	}
-	wd = strings.Replace(wd, "/test/e2e", "", -1)
+	wd = strings.ReplaceAll(wd, "/test/e2e", "")
 	return wd, nil
 }
 

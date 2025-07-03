@@ -116,7 +116,7 @@ func EnsureSysAccount(ctx context.Context, c client.Client, ns string, opKp nkey
 
 	// build / update Secret data map
 	data := map[string][]byte{
-		"seed": []byte(sysSeed),
+		"seed": sysSeed,
 		"jwt":  []byte(sysJWT),
 		"pub":  []byte(sysPub),
 	}

@@ -89,7 +89,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	accInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := accInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			account := obj.(*natsv1.NatsAccount)
 			maybeUpdateCache(context.TODO(), k8sClient, account, jwtCache)
@@ -102,7 +102,10 @@ func main() {
 			account := obj.(*natsv1.NatsAccount)
 			jwtCache.Delete(account.Status.AccountPublicKey)
 		},
-	})
+	}); err != nil {
+		setupLog.Error(err, "add event handler")
+		os.Exit(1)
+	}
 
 	// 3. Connect to NATS
 	natsURL := os.Getenv("NATS_URL")
@@ -112,6 +115,7 @@ func main() {
 		setupLog.Error(err, "nats connect")
 		os.Exit(1)
 	}
+	//nolint:errcheck
 	defer nc.Drain()
 
 	// 4. Subscribe for account lookup requests
@@ -135,7 +139,10 @@ func main() {
 			for _, a := range list.Items {
 				if a.Status.AccountPublicKey == accountID && a.Status.SecretName != "" {
 					var sec corev1.Secret
-					if err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: a.Status.SecretName, Namespace: a.Namespace}, &sec); err == nil {
+					if err := k8sClient.Get(context.TODO(), client.ObjectKey{
+						Name:      a.Status.SecretName,
+						Namespace: a.Namespace,
+					}, &sec); err == nil {
 						jwtStr := string(sec.Data["jwt"])
 						jwtCache.Store(a.Status.AccountPublicKey, cacheEntry{jwt: jwtStr, ts: time.Now()})
 						_ = m.Respond([]byte(jwtStr))
@@ -154,13 +161,18 @@ func main() {
 	// 5. Serve metrics
 	http.Handle("/metrics", promhttp.Handler())
 	log.Println("resolver service ready: metrics on :2112/metrics")
-	http.ListenAndServe(":2112", nil)
+	if err := http.ListenAndServe(":2112", nil); err != nil {
+		setupLog.Error(err, "metrics server")
+		os.Exit(1)
+	}
 
 	select {}
 }
 
 // maybeUpdateCache loads the JWT from the referenced secret and updates map
-func maybeUpdateCache(ctx context.Context, c client.Client, acc *natsv1.NatsAccount, store *xsync.Map[string, cacheEntry]) {
+func maybeUpdateCache(ctx context.Context, c client.Client,
+	acc *natsv1.NatsAccount, store *xsync.Map[string, cacheEntry],
+) {
 	if !acc.Status.Ready || acc.Status.SecretName == "" || acc.Status.AccountPublicKey == "" {
 		return
 	}

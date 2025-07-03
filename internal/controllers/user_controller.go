@@ -103,8 +103,8 @@ NKEYs are sensitive and should be treated as secrets.
 		if errors.IsNotFound(err) {
 			jwtChanged = true
 			sec.Type = corev1.SecretTypeOpaque
-			sec.ObjectMeta.Name = secretName
-			sec.ObjectMeta.Namespace = req.Namespace
+			sec.Name = secretName
+			sec.Namespace = req.Namespace
 			sec.StringData = map[string]string{
 				"user.creds": creds,
 			}

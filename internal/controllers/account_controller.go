@@ -58,8 +58,8 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if errors.IsNotFound(err) {
 			jwtChanged = true
 			sec.Type = corev1.SecretTypeOpaque
-			sec.ObjectMeta.Name = secretName
-			sec.ObjectMeta.Namespace = req.Namespace
+			sec.Name = secretName
+			sec.Namespace = req.Namespace
 			sec.StringData = map[string]string{
 				"jwt":  jwtStr,
 				"seed": seed,
@@ -144,8 +144,8 @@ func (r *NatsAccountReconciler) ensureAccountJWT(ctx context.Context, a *natsv1.
 	// Build AccountClaims from spec
 	ac := natsjwt.NewAccountClaims(pub)
 	if a.Spec.JetStreamEnabled {
-		ac.Limits.JetStreamLimits.DiskStorage = -1
-		ac.Limits.JetStreamLimits.MemoryStorage = -1
+		ac.Limits.DiskStorage = -1
+		ac.Limits.MemoryStorage = -1
 		// TODO: map full limits from spec
 	}
 	if a.Spec.Expiration != nil {
