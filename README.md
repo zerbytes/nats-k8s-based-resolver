@@ -52,7 +52,7 @@ resolver: {
     # Directory in which account jwt will be stored (in Kubernetes this can be a volume mount or emptyDir)
     dir: './jwt'
     # In order to support jwt deletion, set to true.
-    # If you set it to true, be aware that there is currently no mechanism that would delete deleted jwts.
+    # If you set it to true, it is recommend to set `hard_delete: true` as well.
     allow_delete: false
     # Interval at which a nats-server with a nats based account resolver will compare
     # it's state with one random nats based account resolver in the cluster and if needed,
@@ -60,6 +60,9 @@ resolver: {
     interval: "2m"
     # limit on the number of jwt stored, will reject new jwt once limit is hit.
     limit: 1000
+    # Timeout for the resolver to wait for a response from the NATS server.
+    timeout: "3s"
+    
 }
 ```
 
