@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	natsv1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
-	"github.com/zerbytes/nats-based-resolver/controllers"
+	"github.com/zerbytes/nats-based-resolver/internal/controllers"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
