@@ -57,7 +57,11 @@ func getOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nke
 	newSec.Name = secretName
 	newSec.Namespace = ns
 	newSec.Type = corev1.SecretTypeOpaque
-	newSec.StringData = map[string]string{"seed": string(seed), "jwt": jwtStr}
+	newSec.StringData = map[string]string{
+		"seed": string(seed),
+		"jwt":  jwtStr,
+		"pub":  pub,
+	}
 	if newSec.Labels == nil {
 		newSec.Labels = map[string]string{}
 	}

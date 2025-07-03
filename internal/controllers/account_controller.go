@@ -60,7 +60,11 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			sec.Type = corev1.SecretTypeOpaque
 			sec.ObjectMeta.Name = secretName
 			sec.ObjectMeta.Namespace = req.Namespace
-			sec.StringData = map[string]string{"jwt": jwtStr, "seed": seed}
+			sec.StringData = map[string]string{
+				"jwt":  jwtStr,
+				"seed": seed,
+				"pub":  pub,
+			}
 			// Add labels
 			if sec.Labels == nil {
 				sec.Labels = map[string]string{}
@@ -81,7 +85,11 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			jwtChanged = true
 		}
 		if string(sec.Data["jwt"]) != jwtStr || string(sec.Data["seed"]) != seed {
-			sec.StringData = map[string]string{"jwt": jwtStr, "seed": seed}
+			sec.StringData = map[string]string{
+				"jwt":  jwtStr,
+				"seed": seed,
+				"pub":  pub,
+			}
 			if err := r.Update(ctx, sec); err != nil {
 				return ctrl.Result{}, err
 			}

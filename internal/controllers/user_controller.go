@@ -105,7 +105,9 @@ NKEYs are sensitive and should be treated as secrets.
 			sec.Type = corev1.SecretTypeOpaque
 			sec.ObjectMeta.Name = secretName
 			sec.ObjectMeta.Namespace = req.Namespace
-			sec.StringData = map[string]string{"user.creds": creds}
+			sec.StringData = map[string]string{
+				"user.creds": creds,
+			}
 			if sec.Labels == nil {
 				sec.Labels = map[string]string{}
 			}
@@ -123,7 +125,9 @@ NKEYs are sensitive and should be treated as secrets.
 	} else {
 		if string(sec.Data["user.creds"]) != creds {
 			jwtChanged = true
-			sec.StringData = map[string]string{"user.creds": creds}
+			sec.StringData = map[string]string{
+				"user.creds": creds,
+			}
 			if err := r.Update(ctx, sec); err != nil {
 				return ctrl.Result{}, err
 			}
