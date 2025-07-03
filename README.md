@@ -14,7 +14,7 @@ This operator provides a Kubernetes-native way to manage NATS accounts and users
 > The API is not stable yet.
 
 1. **Deploy the operator** - provides CRDs, generates Operator JWT and `$SYS` account automatically.
-2. **Patch / deploy your NATS cluster** - mount
+2. **Patch / deploy your NATS cluster** - mount and configure the following secrets:
    * `nats-operator-jwt` secret (operator.jwt)
    * `nats-sys-account-jwt` secret (sys.jwt)
    and enable `resolver: FULL` in `nats.conf`.
@@ -40,6 +40,47 @@ spec:
 ```
 
 5. Mount `nats-user-payments-api-jwt` secret into your app pod and connect to NATS with the creds.
+
+### Configure NATS To Use The Generated Secrets
+
+To configure your NATS server to use the generated secrets, you need to modify your `nats.conf` file to include the following:
+
+```conf
+# This is the resolver configuration for NATS based account resolver
+resolver: {
+    type: full
+    # Directory in which account jwt will be stored (in Kubernetes this can be a volume mount or emptyDir)
+    dir: './jwt'
+    # In order to support jwt deletion, set to true.
+    # If you set it to true, be aware that there is currently no mechanism that would delete deleted jwts.
+    allow_delete: false
+    # Interval at which a nats-server with a nats based account resolver will compare
+    # it's state with one random nats based account resolver in the cluster and if needed,
+    # exchange jwt and converge on the same set of jwt.
+    interval: "2m"
+    # limit on the number of jwt stored, will reject new jwt once limit is hit.
+    limit: 1000
+}
+```
+
+(Taken from [NATS docs - Account lookup using Resolver - NATS Based Resolver](https://docs.nats.io/running-a-nats-service/configuration/securing_nats/auth_intro/jwt/resolver#full))
+
+#### Using With NATS Helm Chart
+
+If you are using the [NATS Helm Chart](https://github.com/nats-io/k8s), you can enable the resolver by adding the following to your `values.yaml`:
+
+```yaml
+# values.yaml
+nats:
+  resolver:
+    type: full
+    dir: './jwt'
+    allow_delete: false
+    interval: "2m"
+    limit: 1000
+```
+
+(Currently these instructions are not tested and incomplete (additional volumes and volume mounts for secrets are missing), please open an issue if you have problems.)
 
 ## Contributing
 
