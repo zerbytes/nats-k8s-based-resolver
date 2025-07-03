@@ -6,7 +6,7 @@ This operator provides a Kubernetes-native way to manage NATS accounts and users
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/zerbytes/nats-based-resolver)](https://goreportcard.com/report/github.com/zerbytes/nats-based-resolver)
 [![License](https://img.shields.io/github/license/zerbytes/nats-based-resolver)](LICENSE)
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/zerbytes/nats-based-resolver/CI)](https://github.com/zerbytes/nats-based-resolver/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/zerbytes/nats-based-resolver/test.yml?branch=main)](https://github.com/zerbytes/nats-based-resolver/actions)
 
 ## Usage
 
