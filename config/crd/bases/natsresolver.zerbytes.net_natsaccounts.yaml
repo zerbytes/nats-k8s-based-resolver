@@ -1,0 +1,103 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: natsaccounts.natsresolver.zerbytes.net
+spec:
+  group: natsresolver.zerbytes.net
+  names:
+    kind: NatsAccount
+    listKind: NatsAccountList
+    plural: natsaccounts
+    shortNames:
+    - na
+    singular: natsaccount
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.jetStreamEnabled
+      name: JetStream
+      type: boolean
+    - jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: NatsAccount is the Schema for the accounts API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              expiration:
+                description: |-
+                  Expiration specifies an RFC3339 timestamp when the account JWT
+                  should expire. If omitted the JWT does not expire.
+                format: date-time
+                type: string
+              jetStreamEnabled:
+                description: JetStreamEnabled toggles JetStream for the account.
+                type: boolean
+              limits:
+                description: |-
+                  Limits for the account (connections, subscriptions, etc.).
+                  All fields optional - if omitted NATS defaults apply.
+                properties:
+                  maxConnections:
+                    type: integer
+                  maxMsgs:
+                    type: integer
+                  maxPayload:
+                    type: integer
+                  maxStorage:
+                    type: integer
+                  maxSubs:
+                    type: integer
+                type: object
+              systemAccount:
+                default: false
+                description: |-
+                  SystemAccount marks this account as the NATS $SYS account.
+                  Automatically set by the operator; users should not set this.
+                type: boolean
+            type: object
+          status:
+            properties:
+              accountPublicKey:
+                description: AccountPublicKey contains the public NKey of the account.
+                type: string
+              ready:
+                description: Ready indicates that the JWT secret was successfully
+                  created.
+                type: boolean
+              secretName:
+                description: SecretName referencing the Kubernetes Secret with the
+                  JWT.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

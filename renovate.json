@@ -1,0 +1,11 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "github>nuxt/renovate-config-nuxt"
+    ],
+    "baseBranches": ["develop"],
+    "postUpdateOptions": ["gomodTidy"],
+    "nix": {
+        "enabled": true
+    }
+}

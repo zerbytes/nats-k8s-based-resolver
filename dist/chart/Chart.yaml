@@ -1,0 +1,7 @@
+apiVersion: v2
+name: nats-based-resolver
+description: A Helm chart to distribute the project nats-based-resolver
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+icon: "https://example.com/icon.png"

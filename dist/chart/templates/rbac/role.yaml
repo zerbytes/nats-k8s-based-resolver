@@ -1,0 +1,51 @@
+{{- if .Values.rbac.enable }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: nats-based-resolver-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - natsresolver.zerbytes.net
+  resources:
+  - natsaccounts
+  - natsusers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - natsresolver.zerbytes.net
+  resources:
+  - natsaccounts/status
+  - natsusers/status
+  verbs:
+  - get
+  - patch
+  - update
+{{- end -}}

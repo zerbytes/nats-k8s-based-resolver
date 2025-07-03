@@ -1,0 +1,8 @@
+apiVersion: zerbytes.net/v1alpha1
+kind: NatsUser
+metadata:
+  name: payments-api
+spec:
+  accountRef:
+    name: payments
+    namespace: default
