@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Utility functions for the e2e tests
+// Package utils contains utility functions for tests.
 package utils
 
 import (
