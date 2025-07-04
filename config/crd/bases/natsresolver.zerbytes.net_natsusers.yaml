@@ -94,10 +94,55 @@ spec:
                 description: Expiration RFC3339 time - optional, infinite if omitted.
                 format: date-time
                 type: string
+              limits:
+                description: Limits applied to this user (payload, subs, …).
+                properties:
+                  maxPayload:
+                    description: MaxPayload defines the maximum message payload a
+                      user can publish (bytes).
+                    format: int64
+                    type: integer
+                  maxSubs:
+                    description: MaxSubs caps how many subscriptions a connection
+                      can register.
+                    format: int64
+                    type: integer
+                type: object
               permissions:
-                description: |-
-                  Permissions placeholder - will be mapped to publish/subscribe
-                  permissions in the user JWT.
+                description: Permissions (publish / subscribe allow|deny lists).
+                properties:
+                  publish:
+                    description: Publish rules
+                    properties:
+                      allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        description: Subjects that are explicitly denied.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  subscribe:
+                    description: Subscribe rules
+                    properties:
+                      allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        description: Subjects that are explicitly denied.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                 type: object
             required:
             - accountRef
@@ -112,6 +157,7 @@ spec:
                 type: string
             type: object
         type: object
+        x-kubernetes-preserve-unknown-fields: true
     served: true
     storage: true
     subresources:

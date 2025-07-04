@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -48,4 +49,17 @@ func pushJWT(jwt string) error {
 	subj := "$SYS.REQ.CLAIMS.UPDATE"
 	_, err = nc.Request(subj, []byte(jwt), 2*time.Second)
 	return err
+}
+
+func extractJWTandSeed(creds string) (jwt, seed string) {
+	lines := strings.Split(strings.TrimSpace(creds), "\n")
+	for i, l := range lines {
+		switch {
+		case l == "---- BEGIN NATS USER JWT ----" && i+1 < len(lines):
+			jwt = lines[i+1]
+		case l == "-----BEGIN USER NKEY SEED-----" && i+1 < len(lines):
+			seed = lines[i+1]
+		}
+	}
+	return
 }

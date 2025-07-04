@@ -44,11 +44,12 @@ type NatsAccountSpec struct {
 }
 
 type AccountLimits struct {
-	MaxConnections *int `json:"maxConnections,omitempty"`
-	MaxSubs        *int `json:"maxSubs,omitempty"`
-	MaxMsgs        *int `json:"maxMsgs,omitempty"`
-	MaxPayload     *int `json:"maxPayload,omitempty"`
-	MaxStorage     *int `json:"maxStorage,omitempty"`
+	MaxConnections   *int `json:"maxConnections,omitempty"`
+	MaxSubs          *int `json:"maxSubs,omitempty"`
+	MaxData          *int `json:"maxData,omitempty"`
+	MaxPayload       *int `json:"maxPayload,omitempty"`
+	MaxDiskStorage   *int `json:"maxDiskStorage,omitempty"`
+	MaxMemoryStorage *int `json:"maxMemoryStorage,omitempty"`
 }
 
 type NatsAccountStatus struct {

@@ -7,6 +7,7 @@ import (
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:pruning:PreserveUnknownFields
 // +kubebuilder:resource:path=natsusers,shortName=nu,scope=Namespaced
 // +kubebuilder:printcolumn:name="Account",type=string,JSONPath=".spec.accountRef.name"
 // +kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=".status.ready"
@@ -27,16 +28,48 @@ type NatsUserSpec struct {
 	// +optional
 	Expiration *metav1.Time `json:"expiration,omitempty"`
 
-	// TODO: wire permissions/limits into JWT generation.
+	// Limits applied to this user (payload, subs, …).
+	// +optional
+	Limits *UserLimits `json:"limits,omitempty"`
 
-	// Permissions placeholder - will be mapped to publish/subscribe
-	// permissions in the user JWT.
+	// Permissions (publish / subscribe allow|deny lists).
 	// +optional
 	Permissions *UserPermissions `json:"permissions,omitempty"`
 }
 
+// UserLimits captures resource ceilings for an individual user.
+// +kubebuilder:object:generate=true
+// +kubebuilder:validation:Optional
+type UserLimits struct {
+	// MaxPayload defines the maximum message payload a user can publish (bytes).
+	// +optional
+	MaxPayload *int64 `json:"maxPayload,omitempty"`
+
+	// MaxSubs caps how many subscriptions a connection can register.
+	// +optional
+	MaxSubs *int64 `json:"maxSubs,omitempty"`
+}
+
 type UserPermissions struct {
-	// TODO: add fields like Pub.Allow, Sub.Deny etc.
+	// Publish rules
+	// +optional
+	Publish PermissionRules `json:"publish,omitempty"`
+
+	// Subscribe rules
+	// +optional
+	Subscribe PermissionRules `json:"subscribe,omitempty"`
+}
+
+// Permission rule helper – Allow/Deny lists of subjects.
+type PermissionRules struct {
+	// Subjects that are explicitly allowed.
+	// Use NATS wildcards (>, *).
+	// +kubebuilder:validation:Optional
+	Allow []string `json:"allow,omitempty"`
+
+	// Subjects that are explicitly denied.
+	// +kubebuilder:validation:Optional
+	Deny []string `json:"deny,omitempty"`
 }
 
 type NatsUserStatus struct {

@@ -66,11 +66,13 @@ spec:
                 properties:
                   maxConnections:
                     type: integer
-                  maxMsgs:
+                  maxData:
+                    type: integer
+                  maxDiskStorage:
+                    type: integer
+                  maxMemoryStorage:
                     type: integer
                   maxPayload:
-                    type: integer
-                  maxStorage:
                     type: integer
                   maxSubs:
                     type: integer

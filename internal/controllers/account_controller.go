@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	natsjwt "github.com/nats-io/jwt/v2"
 	nkeys "github.com/nats-io/nkeys"
@@ -16,12 +18,12 @@ import (
 	natsv1alpha1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
 )
 
-// NatsAccountReconciler reconciles a NatsAccount object
 // +kubebuilder:rbac:groups=natsresolver.zerbytes.net,resources=natsaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=natsresolver.zerbytes.net,resources=natsaccounts/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
+// NatsAccountReconciler reconciles a NatsAccount object
 type NatsAccountReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -30,140 +32,221 @@ type NatsAccountReconciler struct {
 func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 
-	var account natsv1alpha1.NatsAccount
-	if err := r.Get(ctx, req.NamespacedName, &account); err != nil {
+	// 1. Fetch NatsAccount CR
+	var acct natsv1alpha1.NatsAccount
+	if err := r.Get(ctx, req.NamespacedName, &acct); err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
 
-	// 1. Ensure operator secret exists (bootstrap elsewhere).
+	desired := accDesiredFromSpec(&acct)
 
-	// 2. Generate / fetch account keypair
-	secretName := fmt.Sprintf("nats-account-%s-seed", account.Name)
+	// 2. Determine if we need new creds or can reuse existing
+	secretName := fmt.Sprintf("nats-account-%s-jwt", acct.Name)
+	var sec corev1.Secret
+	first := errors.IsNotFound(r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: req.Namespace}, &sec))
 
-	pub, jwtStr, seed, err := r.ensureAccountJWT(ctx, &account, secretName)
-	if err != nil {
-		log.Error(err, "unable to ensure account JWT")
-		return ctrl.Result{}, err
+	var (
+		kp      nkeys.KeyPair
+		pubKey  string
+		seedStr string
+		jwtStr  string
+		changed bool
+	)
+
+	if !first {
+		// Try to parse existing secret
+		if b := sec.Data["seed"]; len(b) > 0 {
+			if k, e := nkeys.FromSeed(b); e == nil {
+				kp = k
+				pubKey, _ = kp.PublicKey()
+				seedStr = string(b)
+			}
+		}
+		jwtStr = string(sec.Data["jwt"])
 	}
 
-	// track whether we changed the JWT
-	jwtChanged := false
+	if kp == nil { // no keypair found
+		changed = true
+		kp, _ = nkeys.CreateAccount()
+		pubKey, _ = kp.PublicKey()
+		s, _ := kp.Seed()
+		seedStr = string(s)
+	}
 
-	// 3. Create / patch secret with JWT and seed
-	sec := &corev1.Secret{}
-	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: req.Namespace}, sec); err != nil {
-		if errors.IsNotFound(err) {
-			jwtChanged = true
-			sec.Type = corev1.SecretTypeOpaque
-			sec.Name = secretName
-			sec.Namespace = req.Namespace
-			sec.StringData = map[string]string{
-				"jwt":  jwtStr,
-				"seed": seed,
-				"pub":  pub,
-			}
-			// Add labels
-			if sec.Labels == nil {
-				sec.Labels = map[string]string{}
-			}
-			sec.Labels["app.kubernetes.io/managed-by"] = "nats-account-operator"
-			sec.Labels["zerbytes.net/account"] = account.Name
-			if err := ctrl.SetControllerReference(&account, sec, r.Scheme); err != nil {
-				return ctrl.Result{}, err
-			}
-			if err := r.Create(ctx, sec); err != nil {
-				return ctrl.Result{}, err
-			}
-		} else {
-			return ctrl.Result{}, err
-		}
+	// Decide if we need to create/update the JWT
+	if first {
+		changed = true
 	} else {
-		if string(sec.Data["jwt"]) != jwtStr {
-			jwtChanged = true
-		}
-		if string(sec.Data["jwt"]) != jwtStr || string(sec.Data["seed"]) != seed {
-			sec.StringData = map[string]string{
-				"jwt":  jwtStr,
-				"seed": seed,
-				"pub":  pub,
+		claim, _ := natsjwt.Decode(jwtStr)
+		if ac, ok := claim.(*natsjwt.AccountClaims); ok {
+			if !desired.equal(accDesiredFromClaims(ac)) {
+				changed = true
 			}
-			if err := r.Update(ctx, sec); err != nil {
+		} else {
+			changed = true
+		}
+	}
+
+	if changed {
+		// build new JWT
+		opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, acct.Namespace)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		ac := natsjwt.NewAccountClaims(pubKey)
+		// copy limits
+		ac.Limits.Conn = desired.limits.conns
+		ac.Limits.Subs = desired.limits.subs
+		ac.Limits.Data = desired.limits.data
+		ac.Limits.Payload = desired.limits.payload
+		ac.Limits.JetStreamLimits.DiskStorage = desired.limits.diskStorage
+		ac.Limits.JetStreamLimits.MemoryStorage = desired.limits.memoryStorage
+		if desired.exp != 0 {
+			ac.Expires = desired.exp
+		}
+		jwtStr, err = ac.Encode(opKp)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	if first {
+		sec.Type = corev1.SecretTypeOpaque
+		sec.ObjectMeta.Name = secretName
+		sec.ObjectMeta.Namespace = req.Namespace
+		sec.Data = map[string][]byte{"jwt": []byte(jwtStr), "seed": []byte(seedStr)}
+		if sec.Labels == nil {
+			sec.Labels = map[string]string{}
+		}
+		sec.Labels["app.kubernetes.io/managed-by"] = "nats-account-operator"
+		sec.Labels["zerbytes.net/account"] = acct.Name
+		_ = ctrl.SetControllerReference(&acct, &sec, r.Scheme)
+		if err := r.Create(ctx, &sec); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else if changed {
+		dirty := false
+		if !bytes.Equal(sec.Data["jwt"], []byte(jwtStr)) {
+			sec.Data["jwt"] = []byte(jwtStr)
+			dirty = true
+		}
+		if !bytes.Equal(sec.Data["seed"], []byte(seedStr)) {
+			sec.Data["seed"] = []byte(seedStr)
+			dirty = true
+		}
+		if dirty {
+			if err := r.Update(ctx, &sec); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
 	}
 
-	// 4. Update status
-	if !account.Status.Ready {
-		account.Status.Ready = true
-		account.Status.AccountPublicKey = pub
-		account.Status.SecretName = secretName
-		if err := r.Status().Update(ctx, &account); err != nil {
+	// 4. Status update with error handling
+	if !acct.Status.Ready || acct.Status.AccountPublicKey != pubKey {
+		acct.Status.Ready = true
+		acct.Status.AccountPublicKey = pubKey
+		acct.Status.SecretName = secretName
+		if err := r.Status().Update(ctx, &acct); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	// -----------------------------------------------------------------
-	// Push update to NATS if JWT changed
-	// -----------------------------------------------------------------
-	if jwtChanged {
+	// 5. Push JWT to NATS if changed
+	if changed {
 		if err := pushJWT(jwtStr); err != nil {
-			log.Error(err, "failed to push account JWT to NATS, will retry next reconcile")
-			// don't fail reconcile; best effort
-		} else {
-			log.Info("pushed account JWT to NATS", "account", account.Name)
+			log.Error(err, "failed to push account JWT to NATS, will retry later", "account", acct.Name)
+			return ctrl.Result{}, err
 		}
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 12 * time.Hour}, nil
 }
 
-func (r *NatsAccountReconciler) ensureAccountJWT(ctx context.Context, a *natsv1alpha1.NatsAccount, secretName string) (string, string, string, error) {
-	// 1. Try to load existing keypair from the account secret
-	var existing corev1.Secret
-	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: a.Namespace}, &existing); err == nil {
-		if seedB, ok := existing.Data["seed"]; ok && len(seedB) > 0 {
-			kp, err := nkeys.FromSeed(seedB)
-			if err == nil {
-				pub, _ := kp.PublicKey()
-				if jwtB, ok := existing.Data["jwt"]; ok {
-					return pub, string(jwtB), string(seedB), nil // reuse existing
-				}
-			}
-		}
-	}
+type accDesired struct {
+	limits accLimits
+	exp    int64
+}
 
-	// 2. Generate new account keypair (first creation path)
-	kp, _ := nkeys.CreateAccount()
-	pub, _ := kp.PublicKey()
-	seed, _ := kp.Seed()
+func (a accDesired) equal(b accDesired) bool {
+	return a == b
+}
 
-	// Build AccountClaims from spec
-	ac := natsjwt.NewAccountClaims(pub)
-	if a.Spec.JetStreamEnabled {
-		ac.Limits.DiskStorage = -1
-		ac.Limits.MemoryStorage = -1
-		// TODO: map full limits from spec
-	}
+func accDesiredFromSpec(a *natsv1alpha1.NatsAccount) accDesired {
+	d := accDesired{limits: accLimitsFromSpec(a)}
 	if a.Spec.Expiration != nil {
-		ac.Expires = a.Spec.Expiration.Unix()
+		d.exp = a.Spec.Expiration.Unix()
 	}
+	return d
+}
 
-	// 3. **LOAD OR CREATE OPERATOR KEY** and sign the Account JWT
-	opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, a.Namespace)
-	if err != nil {
-		return "", "", "", err
+func accDesiredFromClaims(ac *natsjwt.AccountClaims) accDesired {
+	return accDesired{limits: accLimitsFromClaims(ac), exp: ac.Expires}
+}
+
+type accLimits struct {
+	conns, subs, data, payload, diskStorage, memoryStorage int64
+	jetstream                                              bool
+}
+
+func accLimitsFromSpec(a *natsv1alpha1.NatsAccount) accLimits {
+	var l accLimits
+	if a.Spec.Limits != nil {
+		if a.Spec.Limits.MaxConnections != nil {
+			l.conns = int64(*a.Spec.Limits.MaxConnections)
+		} else {
+			l.conns = -1 // default to unlimited if not set
+		}
+		if a.Spec.Limits.MaxSubs != nil {
+			l.subs = int64(*a.Spec.Limits.MaxSubs)
+		} else {
+			l.subs = -1 // default to unlimited if not set
+		}
+		if a.Spec.Limits.MaxData != nil {
+			l.data = int64(*a.Spec.Limits.MaxData)
+		} else {
+			l.data = -1 // default to unlimited if not set
+		}
+		if a.Spec.Limits.MaxPayload != nil {
+			l.payload = int64(*a.Spec.Limits.MaxPayload)
+		} else {
+			l.payload = -1 // default to unlimited if not set
+		}
+		if a.Spec.Limits.MaxDiskStorage != nil {
+			l.diskStorage = int64(*a.Spec.Limits.MaxDiskStorage)
+		} else {
+			l.diskStorage = -1 // default to unlimited if not set
+		}
+		if a.Spec.Limits.MaxMemoryStorage != nil {
+			l.memoryStorage = int64(*a.Spec.Limits.MaxMemoryStorage)
+		} else {
+			l.memoryStorage = -1 // default to unlimited if not set
+		}
+	} else {
+		// default to unlimited if not set
+		l.conns = -1
+		l.subs = -1
+		l.data = -1
+		l.payload = -1
+		l.diskStorage = -1
+		l.memoryStorage = -1
 	}
+	l.jetstream = a.Spec.JetStreamEnabled
+	return l
+}
 
-	jwtStr, err := ac.Encode(opKp)
-	if err != nil {
-		return "", "", "", err
-	}
-
-	return pub, jwtStr, string(seed), nil
+func accLimitsFromClaims(ac *natsjwt.AccountClaims) accLimits {
+	var l accLimits
+	l.conns = int64(ac.Limits.Conn)
+	l.subs = int64(ac.Limits.Subs)
+	l.data = int64(ac.Limits.Data)
+	l.payload = int64(ac.Limits.Payload)
+	l.diskStorage = int64(ac.Limits.DiskStorage)
+	l.memoryStorage = int64(ac.Limits.MemoryStorage)
+	l.jetstream = ac.Limits.DiskStorage != 0 || ac.Limits.MemoryStorage != 0
+	return l
 }
 
 func (r *NatsAccountReconciler) SetupWithManager(mgr ctrl.Manager) error {
