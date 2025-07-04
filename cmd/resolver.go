@@ -54,8 +54,8 @@ var (
 var jwtCache = xsync.NewMap[string, cacheEntry]()
 
 type ResolverCmd struct {
-	NatsURL   string `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
-	NatsCreds string `required:"" env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
+	NatsURL   string `env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
+	NatsCreds string `env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
 }
 
 func (c *ResolverCmd) Run(cli *MainCommand) error {
@@ -86,8 +86,13 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 	if err != nil {
 		return err
 	}
-	//nolint:errcheck
-	defer nc.Drain()
+	defer func() {
+		if nc == nil {
+			return
+		}
+		//nolint:errcheck
+		nc.Drain()
+	}()
 
 	if err := preloadJWTs(mgr, k8sClient, ns); err != nil {
 		return err
@@ -153,6 +158,10 @@ func setupAccountInformer(mgr manager.Manager, k8sClient client.Client) error {
 
 // connectNATS connects to the NATS server
 func connectNATS(url, creds string, setupLog *zap.SugaredLogger) (*nats.Conn, error) {
+	if url == "" {
+		return nil, nil
+	}
+
 	nc, err := nats.Connect(url, nats.UserCredentials(creds))
 	if err != nil {
 		setupLog.Error(err, "nats connect")

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	natsjwt "github.com/nats-io/jwt/v2"
@@ -84,7 +85,7 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nke
 // EnsureSysAccount returns (sysKP, sysJWT string, sysPub string).
 // If rotate==true it generates a *new* account keypair & JWT, replacing
 // whatever is stored in the Secret.
-func EnsureSysAccount(ctx context.Context, natsURL string, natsCreds string, c client.Client, ns string, opKp nkeys.KeyPair, rotate bool) (nkeys.KeyPair, string, string, error) {
+func EnsureSysAccount(ctx context.Context, nURL string, nCreds string, c client.Client, ns string, opKp nkeys.KeyPair, rotate bool) (nkeys.KeyPair, string, string, string, error) {
 	var sec corev1.Secret
 	err := c.Get(ctx, types.NamespacedName{Name: sysSecretName, Namespace: ns}, &sec)
 
@@ -94,14 +95,20 @@ func EnsureSysAccount(ctx context.Context, natsURL string, natsCreds string, c c
 		jwtB, okJwt := sec.Data["jwt"]
 		pubB, okPub := sec.Data["pub"]
 		if okSeed && okJwt && okPub {
-			kp, err := nkeys.FromSeed(seedB)
+			sysKP, err := nkeys.FromSeed(seedB)
 			if err == nil {
-				return kp, string(jwtB), string(pubB), nil
+				sysSeed, _ := sysKP.Seed()
+				_, nCreds, err = ensureSysResolverUserCreds(ctx, c, ns, sysSeed, nCreds)
+				if err != nil {
+					return nil, "", "", "", fmt.Errorf("ensure sys resolver user creds: %w", err)
+				}
+
+				return sysKP, string(jwtB), string(pubB), nCreds, nil
 			}
 		}
 	}
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, "", "", err
+		return nil, "", "", "", err
 	}
 
 	// (B) generate fresh keypair / JWT (first boot or rotation requested)
@@ -143,7 +150,7 @@ func EnsureSysAccount(ctx context.Context, natsURL string, natsCreds string, c c
 		newSec.Type = corev1.SecretTypeOpaque
 		newSec.Data = data
 		if err := c.Create(ctx, newSec); err != nil {
-			return nil, "", "", err
+			return nil, "", "", "", err
 		}
 	} else {
 		// patch existing if any bytes differ
@@ -156,13 +163,40 @@ func EnsureSysAccount(ctx context.Context, natsURL string, natsCreds string, c c
 		}
 		if changed {
 			if err := c.Update(ctx, &sec); err != nil {
-				return nil, "", "", err
+				return nil, "", "", "", err
 			}
 		}
 	}
 
-	// Optionally push updated JWT to NATS immediately (best effort)
-	_ = pushJWT(natsURL, natsCreds, sysJWT) // ignore error at bootstrap
+	_, nCreds, err = ensureSysResolverUserCreds(ctx, c, ns, sysSeed, nCreds)
+	if err != nil {
+		return nil, "", "", "", fmt.Errorf("ensure sys resolver user creds: %w", err)
+	}
 
-	return sysKP, sysJWT, sysPub, nil
+	natsURL = nURL
+	natsCreds = nCreds
+
+	// Optionally push updated JWT to NATS immediately (best effort)
+	_ = pushJWT(sysJWT) // ignore error at bootstrap
+
+	return sysKP, sysJWT, sysPub, nCreds, nil
+}
+
+func ensureSysResolverUserCreds(ctx context.Context, c client.Client, ns string, sysSeed []byte, natsCreds string) (string, string, error) {
+	sysCreds, err := EnsureSysResolverUser(ctx, c, ns, sysSeed, false)
+	if err != nil {
+		return "", "", fmt.Errorf("bootstrap sys resolver user: %w", err)
+	}
+
+	if natsCreds == "" {
+		// If no NATS_CREDS env var, use the default system creds file path
+		tmpFile := "/tmp/nats-sys.creds"
+		if err := os.WriteFile(tmpFile, []byte(sysCreds), 0o600); err != nil {
+			return "", "", fmt.Errorf("write sys creds to temp file: %w", err)
+		}
+
+		natsCreds = tmpFile
+	}
+
+	return sysCreds, natsCreds, nil
 }

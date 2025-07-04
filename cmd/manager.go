@@ -28,7 +28,7 @@ type MainCommand struct {
 
 type ManagerCmd struct {
 	NatsURL   string `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
-	NatsCreds string `required:"" env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
+	NatsCreds string `env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
 
 	MetricsAddr          string `name:"metrics-bind-address" default:"0" help:"The address the metrics endpoint binds to. Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service."`
 	ProbeAddr            string `name:"health-probe-bind-address" default:":8081" help:"The address the probe endpoint binds to."`
@@ -184,15 +184,11 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		}
 
 		// $SYS account (no rotation on first boot)
-		sysKP, _, _, err := controllers.EnsureSysAccount(ctx, cli.Manager.NatsURL, cli.Manager.NatsCreds, client, ns, opKP, false)
+		_, _, _, natsCreds, err := controllers.EnsureSysAccount(ctx, cli.Manager.NatsURL, cli.Manager.NatsCreds, client, ns, opKP, false)
 		if err != nil {
 			return fmt.Errorf("bootstrap sys account: %w", err)
 		}
-		sysSeed, _ := sysKP.Seed()
-
-		if _, err := controllers.EnsureSysResolverUser(ctx, client, ns, sysSeed, false); err != nil {
-			return fmt.Errorf("bootstrap sys resolver user: %w", err)
-		}
+		cli.Manager.NatsCreds = natsCreds
 
 		return nil
 	})); err != nil {
@@ -201,10 +197,8 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 	}
 
 	if err = (&controllers.NatsAccountReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		NatsURL:   cli.Manager.NatsURL,
-		NatsCreds: cli.Manager.NatsCreds,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NatsAccount")
 		return err

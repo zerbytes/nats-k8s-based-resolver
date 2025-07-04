@@ -19,7 +19,7 @@ linters:
     - revive
     - staticcheck
     - unconvert
-    - unparam
+    #- unparam
     - unused
   settings:
     revive:

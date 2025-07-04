@@ -32,25 +32,28 @@ NKEYs are sensitive and should be treated as secrets.
 `
 
 var (
-	connOnce sync.Once
-	nConn    *nats.Conn
-	connErr  error
+	connOnce  sync.Once
+	natsURL   string
+	natsCreds string
+
+	nConn   *nats.Conn
+	connErr error
 )
 
 // getNATSConn returns a shared connection using env vars:
 //
 //	NATS_URL   – e.g. nats://nats:4222
 //	NATS_CREDS – path to resolver creds (user in $SYS)
-func getNATSConn(url string, creds string) (*nats.Conn, error) {
+func getNATSConn() (*nats.Conn, error) {
 	connOnce.Do(func() {
-		if url == "" {
-			url = "nats://nats:4222" // sensible default
+		if natsURL == "" {
+			natsURL = "nats://nats:4222" // sensible default
 		}
 		opts := []nats.Option{nats.Name("nats-account-operator")}
-		if creds != "" {
-			opts = append(opts, nats.UserCredentials(creds))
+		if natsCreds != "" {
+			opts = append(opts, nats.UserCredentials(natsCreds))
 		}
-		nConn, connErr = nats.Connect(url, opts...)
+		nConn, connErr = nats.Connect(natsURL, opts...)
 	})
 	return nConn, connErr
 }
@@ -58,8 +61,8 @@ func getNATSConn(url string, creds string) (*nats.Conn, error) {
 // pushJWT publishes *any* NATS JWT (Account or User) on $SYS.REQ.CLAIMS.UPDATE.
 // NATS servers will parse and cache based on the JWT type.
 // Waits up to 2 s for an ACK but ignores the body.
-func pushJWT(url string, creds string, jwt string) error {
-	nc, err := getNATSConn(url, creds)
+func pushJWT(jwt string) error {
+	nc, err := getNATSConn()
 	if err != nil {
 		return err
 	}

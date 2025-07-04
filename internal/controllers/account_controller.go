@@ -27,9 +27,6 @@ import (
 type NatsAccountReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-
-	NatsURL   string
-	NatsCreds string
 }
 
 func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -171,7 +168,7 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// 5. Push JWT to NATS if changed
 	if changed {
-		if err := pushJWT(r.NatsURL, r.NatsCreds, jwtStr); err != nil {
+		if err := pushJWT(jwtStr); err != nil {
 			log.Error(err, "failed to push account JWT to NATS, will retry later", "account", acct.Name)
 			return ctrl.Result{}, err
 		}

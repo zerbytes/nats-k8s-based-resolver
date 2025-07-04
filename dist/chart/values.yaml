@@ -9,6 +9,8 @@ controllerManager:
       - "--leader-elect"
       - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
+      # Your NATS server/cluster URL here
+      #- "--nats-url=nats://localhost:4222"
     resources:
       limits:
         cpu: 500m
