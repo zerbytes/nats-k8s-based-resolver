@@ -136,7 +136,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		// limits
 		uc.Limits.Payload = desired.limits.payload
-		uc.Limits.Subs = desired.limits.subs
+		uc.Subs = desired.limits.subs
 		// perms
 		uc.Pub.Allow = desired.perms.pubAllow
 		uc.Pub.Deny = desired.perms.pubDeny
@@ -152,8 +152,8 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// 5. Create or update Secret
 	if first {
 		sec.Type = corev1.SecretTypeOpaque
-		sec.ObjectMeta.Name = secretName
-		sec.ObjectMeta.Namespace = req.Namespace
+		sec.Name = secretName
+		sec.Namespace = req.Namespace
 		sec.Data = map[string][]byte{
 			"user.creds": []byte(creds),
 		}
@@ -244,7 +244,7 @@ func userDesiredFromSpec(u *natsv1alpha1.NatsUser) userDesired {
 func desiredFromClaims(uc *natsjwt.UserClaims) userDesired {
 	d := userDesired{exp: uc.Expires}
 	d.limits.payload = uc.Limits.Payload
-	d.limits.subs = uc.Limits.Subs
+	d.limits.subs = uc.Subs
 	d.perms = userPerms{
 		pubAllow: uc.Pub.Allow,
 		pubDeny:  uc.Pub.Deny,

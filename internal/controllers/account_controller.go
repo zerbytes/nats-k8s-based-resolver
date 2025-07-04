@@ -102,8 +102,8 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		ac.Limits.Subs = desired.limits.subs
 		ac.Limits.Data = desired.limits.data
 		ac.Limits.Payload = desired.limits.payload
-		ac.Limits.JetStreamLimits.DiskStorage = desired.limits.diskStorage
-		ac.Limits.JetStreamLimits.MemoryStorage = desired.limits.memoryStorage
+		ac.Limits.DiskStorage = desired.limits.diskStorage
+		ac.Limits.MemoryStorage = desired.limits.memoryStorage
 		if desired.exp != 0 {
 			ac.Expires = desired.exp
 		}
@@ -115,8 +115,8 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if first {
 		sec.Type = corev1.SecretTypeOpaque
-		sec.ObjectMeta.Name = secretName
-		sec.ObjectMeta.Namespace = req.Namespace
+		sec.Name = secretName
+		sec.Namespace = req.Namespace
 		sec.Data = map[string][]byte{"jwt": []byte(jwtStr), "seed": []byte(seedStr)}
 		if sec.Labels == nil {
 			sec.Labels = map[string]string{}
@@ -239,12 +239,12 @@ func accLimitsFromSpec(a *natsv1alpha1.NatsAccount) accLimits {
 
 func accLimitsFromClaims(ac *natsjwt.AccountClaims) accLimits {
 	var l accLimits
-	l.conns = int64(ac.Limits.Conn)
-	l.subs = int64(ac.Limits.Subs)
-	l.data = int64(ac.Limits.Data)
-	l.payload = int64(ac.Limits.Payload)
-	l.diskStorage = int64(ac.Limits.DiskStorage)
-	l.memoryStorage = int64(ac.Limits.MemoryStorage)
+	l.conns = ac.Limits.Conn
+	l.subs = ac.Limits.Subs
+	l.data = ac.Limits.Data
+	l.payload = ac.Limits.Payload
+	l.diskStorage = ac.Limits.DiskStorage
+	l.memoryStorage = ac.Limits.MemoryStorage
 	l.jetstream = ac.Limits.DiskStorage != 0 || ac.Limits.MemoryStorage != 0
 	return l
 }

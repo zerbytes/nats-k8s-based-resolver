@@ -1,3 +1,4 @@
+//nolint:lll
 package main
 
 import (
@@ -53,7 +54,7 @@ type ResolverCmd struct {
 	NATSCreds *os.File `required:"" env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
 }
 
-func (c *ResolverCmd) Run(cli *MainCommand) error {
+func (c *ResolverCmd) Run(_ *MainCommand) error {
 	prometheus.MustRegister(lookupCounter, cacheHit, cacheMiss, pushCounter)
 
 	// 1. Connect to Kubernetes
