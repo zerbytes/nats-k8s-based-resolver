@@ -524,7 +524,7 @@ spec:
         - --leader-elect
         - --health-probe-bind-address=:8081
         # Your NATS server/cluster URL here
-        #- --nats-url=nats://localhost:4222
+        - --nats-url=nats://nats:4222
         image: ghcr.io/zerbytes/nats-k8s-based-resolver:latest
         livenessProbe:
           httpGet:
