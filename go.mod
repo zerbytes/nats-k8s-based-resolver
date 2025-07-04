@@ -1,4 +1,4 @@
-module github.com/zerbytes/nats-based-resolver
+module github.com/zerbytes/nats-k8s-based-resolver
 
 go 1.24.0
 

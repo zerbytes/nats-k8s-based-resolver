@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/go-logr/zapr"
-	natsv1alpha1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
-	"github.com/zerbytes/nats-based-resolver/internal/controllers"
+	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
+	"github.com/zerbytes/nats-k8s-based-resolver/internal/controllers"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -162,7 +162,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: cli.Manager.ProbeAddr,
 		LeaderElection:         cli.Manager.EnableLeaderElection,
-		LeaderElectionID:       "nats-based-resolver-controller",
+		LeaderElectionID:       "nats-k8s-based-resolver-controller",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly

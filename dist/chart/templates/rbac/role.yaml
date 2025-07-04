@@ -5,7 +5,7 @@ kind: ClusterRole
 metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-  name: nats-based-resolver-manager-role
+  name: nats-k8s-based-resolver-manager-role
 rules:
 - apiGroups:
   - ""

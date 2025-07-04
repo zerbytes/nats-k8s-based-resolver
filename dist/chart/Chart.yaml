@@ -1,6 +1,6 @@
 apiVersion: v2
-name: nats-based-resolver
-description: A Helm chart to distribute the project nats-based-resolver
+name: nats-k8s-based-resolver
+description: A Helm chart to distribute the project nats-k8s-based-resolver
 type: application
 version: 0.1.0
 appVersion: "0.1.0"

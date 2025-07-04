@@ -525,7 +525,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/zerbytes/nats-based-resolver:latest
+        image: ghcr.io/zerbytes/nats-k8s-based-resolver:latest
         livenessProbe:
           httpGet:
             path: /healthz

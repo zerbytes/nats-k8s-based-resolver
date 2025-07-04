@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
   namespace: {{ .Release.Namespace }}
-  name: nats-based-resolver-leader-election-role
+  name: nats-k8s-based-resolver-leader-election-role
 rules:
 - apiGroups:
   - ""

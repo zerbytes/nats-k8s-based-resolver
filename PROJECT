@@ -7,8 +7,8 @@ layout:
 - go.kubebuilder.io/v4
 plugins:
   helm.kubebuilder.io/v1-alpha: {}
-projectName: nats-based-resolver
-repo: github.com/zerbytes/nats-based-resolver
+projectName: nats-k8s-based-resolver
+repo: github.com/zerbytes/nats-k8s-based-resolver
 resources:
 - api:
     crdVersion: v1alpha1
@@ -17,6 +17,6 @@ resources:
   domain: zerbytes.net
   group: natsresolver
   kind: NatsAccount
-  path: github.com/zerbytes/nats-based-resolver/api/v1alpha1
+  path: github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1
   version: v1alpha1
 version: "3"

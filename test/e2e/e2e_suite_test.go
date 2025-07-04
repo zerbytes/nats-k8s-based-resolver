@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/zerbytes/nats-based-resolver/test/utils"
+	"github.com/zerbytes/nats-k8s-based-resolver/test/utils"
 )
 
 var (
@@ -39,7 +39,7 @@ var (
 
 	// projectImage is the name of the image which will be build and loaded
 	// with the code source changes to be tested.
-	projectImage = "example.com/nats-based-resolver:v0.0.1"
+	projectImage = "example.com/nats-k8s-based-resolver:v0.0.1"
 )
 
 // TestE2E runs the end-to-end (e2e) test suite for the project. These tests execute in an isolated,

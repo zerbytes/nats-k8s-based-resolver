@@ -33,7 +33,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/zerbytes/nats-based-resolver
+          images: ghcr.io/zerbytes/nats-k8s-based-resolver
 
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
@@ -52,7 +52,7 @@ jobs:
         with:
           context: .
           labels: ${{ steps.meta.outputs.labels }}
-          tags: ghcr.io/zerbytes/nats-based-resolver
+          tags: ghcr.io/zerbytes/nats-k8s-based-resolver
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
@@ -95,7 +95,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/zerbytes/nats-based-resolver
+          images: ghcr.io/zerbytes/nats-k8s-based-resolver
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -108,8 +108,8 @@ jobs:
         working-directory: ${{ runner.temp }}/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/zerbytes/nats-based-resolver@sha256:%s ' *)
+            $(printf 'ghcr.io/zerbytes/nats-k8s-based-resolver@sha256:%s ' *)
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ghcr.io/zerbytes/nats-based-resolver:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ghcr.io/zerbytes/nats-k8s-based-resolver:${{ steps.meta.outputs.version }}

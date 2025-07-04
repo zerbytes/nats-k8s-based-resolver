@@ -4,7 +4,7 @@ kind: ClusterRole
 metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-  name: nats-based-resolver-metrics-reader
+  name: nats-k8s-based-resolver-metrics-reader
 rules:
 - nonResourceURLs:
   - "/metrics"

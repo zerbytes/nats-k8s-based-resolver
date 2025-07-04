@@ -1,12 +1,12 @@
-# nats-based-resolver - NATS Account Resolver
+# nats-k8s-based-resolver - NATS Account Resolver
 
 NATS based account resolver Kubernetes-native operator.
 
 This operator provides a Kubernetes-native way to manage NATS accounts and users, allowing you to create and manage NATS accounts and users using Kubernetes Custom Resource Definitions (CRDs).
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/zerbytes/nats-based-resolver)](https://goreportcard.com/report/github.com/zerbytes/nats-based-resolver)
-[![License](https://img.shields.io/github/license/zerbytes/nats-based-resolver)](LICENSE)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/zerbytes/nats-based-resolver/test.yml?branch=main)](https://github.com/zerbytes/nats-based-resolver/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zerbytes/nats-k8s-based-resolver)](https://goreportcard.com/report/github.com/zerbytes/nats-k8s-based-resolver)
+[![License](https://img.shields.io/github/license/zerbytes/nats-k8s-based-resolver)](LICENSE)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/zerbytes/nats-k8s-based-resolver/test.yml?branch=main)](https://github.com/zerbytes/nats-k8s-based-resolver/actions)
 
 ## Usage
 

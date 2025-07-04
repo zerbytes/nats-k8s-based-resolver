@@ -5,11 +5,11 @@ metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
   namespace: {{ .Release.Namespace }}
-  name: nats-based-resolver-leader-election-rolebinding
+  name: nats-k8s-based-resolver-leader-election-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: nats-based-resolver-leader-election-role
+  name: nats-k8s-based-resolver-leader-election-role
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.controllerManager.serviceAccountName }}

@@ -16,7 +16,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	natsv1alpha1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
+	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
 )
 
 // +kubebuilder:rbac:groups=natsresolver.zerbytes.net,resources=natsusers,verbs=get;list;watch;create;update;patch;delete

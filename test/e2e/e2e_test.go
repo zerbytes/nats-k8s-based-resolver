@@ -27,7 +27,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/zerbytes/nats-based-resolver/test/utils"
+	"github.com/zerbytes/nats-k8s-based-resolver/test/utils"
 )
 
 // namespace where the project is deployed in

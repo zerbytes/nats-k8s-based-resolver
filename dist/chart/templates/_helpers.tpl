@@ -5,10 +5,10 @@
   {{- else if .Values.nameOverride }}
     {{ .Values.nameOverride | trunc 63 | trimSuffix "-" }}
   {{- else }}
-    nats-based-resolver
+    nats-k8s-based-resolver
   {{- end }}
 {{- else }}
-  nats-based-resolver
+  nats-k8s-based-resolver
 {{- end }}
 {{- end }}
 

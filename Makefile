@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/zerbytes/nats-based-resolver:latest
+IMG ?= ghcr.io/zerbytes/nats-k8s-based-resolver:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -94,7 +94,7 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 .PHONY: build
 build: vet ## Build manager binary.
 	CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a \
-		-ldflags "-X github.com/zerbytes/nats-based-resolver/pkg/version.Version=$(shell git describe --tags --exclude='nats-based-resolver-*')" \
+		-ldflags "-X github.com/zerbytes/nats-k8s-based-resolver/pkg/version.Version=$(shell git describe --tags --exclude='nats-k8s-based-resolver-*')" \
 		-o bin/manager ./cmd/
 
 .PHONY: run

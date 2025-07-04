@@ -38,7 +38,7 @@ controllerManager:
     seccompProfile:
       type: RuntimeDefault
   terminationGracePeriodSeconds: 10
-  serviceAccountName: nats-based-resolver-controller-manager
+  serviceAccountName: nats-k8s-based-resolver-controller-manager
 
 # [RBAC]: To enable RBAC (Permissions) configurations
 rbac:
