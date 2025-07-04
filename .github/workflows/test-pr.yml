@@ -1,7 +1,6 @@
 name: Tests
 
 on:
-  push:
   pull_request:
 
 jobs:
@@ -21,10 +20,3 @@ jobs:
         run: |
           go mod tidy
           make test
-
-  build-images:
-    name: Build Images
-    if: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
-    needs: test
-    uses: ./.github/workflows/build_image.yml
-    secrets: inherit
