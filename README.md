@@ -22,14 +22,14 @@ This operator provides a Kubernetes-native way to manage NATS accounts and users
 4. **Create an account & user**:
 
 ```yaml
-apiVersion: zerbytes.net/v1alpha1
+apiVersion: natsresolver.zerbytes.net/v1alpha1
 kind: NatsAccount
 metadata:
   name: payments
 spec:
   jetStreamEnabled: true
 ---
-apiVersion: zerbytes.net/v1alpha1
+apiVersion: natsresolver.zerbytes.net/v1alpha1
 kind: NatsUser
 metadata:
   name: payments-api

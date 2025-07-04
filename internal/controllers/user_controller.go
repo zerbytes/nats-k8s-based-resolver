@@ -7,7 +7,7 @@ import (
 
 	natsjwt "github.com/nats-io/jwt/v2"
 	nkeys "github.com/nats-io/nkeys"
-	natsv1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
+	natsv1alpha1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,7 +31,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log := ctrl.LoggerFrom(ctx)
 
 	// 1. Load NatsUser CR
-	var user natsv1.NatsUser
+	var user natsv1alpha1.NatsUser
 	if err := r.Get(ctx, req.NamespacedName, &user); err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -40,7 +40,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// 2. Fetch parent account secret for seed.
-	var acct natsv1.NatsAccount
+	var acct natsv1alpha1.NatsAccount
 	if err := r.Get(ctx, types.NamespacedName{Name: user.Spec.AccountRef.Name, Namespace: user.Spec.AccountRef.Namespace}, &acct); err != nil {
 		log.Error(err, "parent account not ready")
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
@@ -158,7 +158,7 @@ NKEYs are sensitive and should be treated as secrets.
 
 func (r *NatsUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&natsv1.NatsUser{}).
+		For(&natsv1alpha1.NatsUser{}).
 		Owns(&corev1.Secret{}).
 		Complete(r)
 }

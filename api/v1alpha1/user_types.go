@@ -11,7 +11,6 @@ import (
 // +kubebuilder:printcolumn:name="Account",type=string,JSONPath=".spec.accountRef.name"
 // +kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=".status.ready"
 // NatsUser represents a user credential within a NATS account.
-
 type NatsUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -51,4 +50,9 @@ type NatsUserList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []NatsUser `json:"items"`
+}
+
+func init() {
+	SchemeBuilder.Register(&NatsAccount{}, &NatsAccountList{})
+	SchemeBuilder.Register(&NatsUser{}, &NatsUserList{})
 }

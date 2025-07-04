@@ -13,7 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	natsv1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
+	natsv1alpha1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
 )
 
 // NatsAccountReconciler reconciles a NatsAccount object
@@ -30,7 +30,7 @@ type NatsAccountReconciler struct {
 func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 
-	var account natsv1.NatsAccount
+	var account natsv1alpha1.NatsAccount
 	if err := r.Get(ctx, req.NamespacedName, &account); err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -121,7 +121,7 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-func (r *NatsAccountReconciler) ensureAccountJWT(ctx context.Context, a *natsv1.NatsAccount, secretName string) (string, string, string, error) {
+func (r *NatsAccountReconciler) ensureAccountJWT(ctx context.Context, a *natsv1alpha1.NatsAccount, secretName string) (string, string, string, error) {
 	// 1. Try to load existing keypair from the account secret
 	var existing corev1.Secret
 	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: a.Namespace}, &existing); err == nil {
@@ -168,7 +168,7 @@ func (r *NatsAccountReconciler) ensureAccountJWT(ctx context.Context, a *natsv1.
 
 func (r *NatsAccountReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&natsv1.NatsAccount{}).
+		For(&natsv1alpha1.NatsAccount{}).
 		Owns(&corev1.Secret{}).
 		Complete(r)
 }

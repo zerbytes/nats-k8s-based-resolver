@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/puzpuzpuz/xsync/v4"
-	natsv1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
+	natsv1alpha1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
@@ -48,7 +48,10 @@ var (
 
 var jwtCache = xsync.NewMap[string, cacheEntry]()
 
-type ResolverCmd struct{}
+type ResolverCmd struct {
+	NatsURL   string   `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
+	NATSCreds *os.File `required:"" env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
+}
 
 func (c *ResolverCmd) Run(cli *MainCommand) error {
 	prometheus.MustRegister(lookupCounter, cacheHit, cacheMiss, pushCounter)
@@ -71,7 +74,7 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 	k8sClient := mgr.GetClient()
 
 	// 2. In-memory cache populated via informer
-	accInformer, err := mgr.GetCache().GetInformer(context.TODO(), &natsv1.NatsAccount{})
+	accInformer, err := mgr.GetCache().GetInformer(context.TODO(), &natsv1alpha1.NatsAccount{})
 	if err != nil {
 		setupLog.Error(err, "informer")
 		return err
@@ -79,15 +82,15 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 
 	if _, err := accInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			account := obj.(*natsv1.NatsAccount)
+			account := obj.(*natsv1alpha1.NatsAccount)
 			maybeUpdateCache(context.TODO(), k8sClient, account, jwtCache)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			account := newObj.(*natsv1.NatsAccount)
+			account := newObj.(*natsv1alpha1.NatsAccount)
 			maybeUpdateCache(context.TODO(), k8sClient, account, jwtCache)
 		},
 		DeleteFunc: func(obj interface{}) {
-			account := obj.(*natsv1.NatsAccount)
+			account := obj.(*natsv1alpha1.NatsAccount)
 			jwtCache.Delete(account.Status.AccountPublicKey)
 		},
 	}); err != nil {
@@ -122,7 +125,7 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		}
 		cacheMiss.Inc()
 		// On miss, fetch from K8s - simplified example
-		var list natsv1.NatsAccountList
+		var list natsv1alpha1.NatsAccountList
 		if err := k8sClient.List(context.TODO(), &list); err == nil {
 			for _, a := range list.Items {
 				if a.Status.AccountPublicKey == accountID && a.Status.SecretName != "" {
@@ -159,7 +162,7 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 
 // maybeUpdateCache loads the JWT from the referenced secret and updates map
 func maybeUpdateCache(ctx context.Context, c client.Client,
-	acc *natsv1.NatsAccount, store *xsync.Map[string, cacheEntry],
+	acc *natsv1alpha1.NatsAccount, store *xsync.Map[string, cacheEntry],
 ) {
 	if !acc.Status.Ready || acc.Status.SecretName == "" || acc.Status.AccountPublicKey == "" {
 		return

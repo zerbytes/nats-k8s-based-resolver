@@ -3,9 +3,14 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/go-logr/zapr"
+	natsv1alpha1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
+	"github.com/zerbytes/nats-based-resolver/internal/controllers"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -13,12 +18,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	natsv1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
-	"github.com/zerbytes/nats-based-resolver/internal/controllers"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 var (
@@ -29,7 +32,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
-	utilruntime.Must(natsv1.AddToScheme(scheme))
+	utilruntime.Must(natsv1alpha1.AddToScheme(scheme))
 }
 
 type MainCommand struct {
@@ -55,6 +58,12 @@ type ManagerCmd struct {
 }
 
 func (c *ManagerCmd) Run(cli *MainCommand) error {
+	zapLog, err := zap.NewDevelopment()
+	if err != nil {
+		panic(fmt.Sprintf("who watches the watchmen (%v)?", err))
+	}
+	ctrl.SetLogger(zapr.NewLogger(zapLog))
+
 	var tlsOpts []func(*tls.Config)
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
@@ -171,22 +180,33 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 	}
 
 	// Bootstrap: Operator key & $SYS account Secret
-	// Use POD_NAMESPACE (set by the Helm chart) or fallback "default"
-	ns := os.Getenv("POD_NAMESPACE")
-	if ns == "" {
-		ns = "default"
-	}
-	ctx := context.Background()
+	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		// 1. Wait for informer cache
+		if ok := mgr.GetCache().WaitForCacheSync(ctx); !ok {
+			return fmt.Errorf("cache never syncs")
+		}
+		// Use POD_NAMESPACE (set by the Helm chart) or fallback "default"
+		ns := os.Getenv("POD_NAMESPACE")
+		if ns == "" {
+			ns = "default"
+		}
+		client := mgr.GetClient()
 
-	opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, mgr.GetClient(), ns)
-	if err != nil {
-		setupLog.Error(err, "bootstrap: operator key")
-		return err
-	}
+		// Operator key
+		opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, client, ns)
+		if err != nil {
+			return err
+		}
 
-	if _, _, _, err := controllers.EnsureSysAccount(ctx, mgr.GetClient(), ns, opKP, false); err != nil {
-		setupLog.Error(err, "bootstrap: $SYS account")
-		return err
+		// $SYS account (no rotation on first boot)
+		if _, _, _, err := controllers.EnsureSysAccount(ctx, client, ns, opKP, false); err != nil {
+			return fmt.Errorf("bootstrap sys account: %w", err)
+		}
+
+		return nil
+	})); err != nil {
+		setupLog.Error(err, "add bootstrap runnable")
+		os.Exit(1)
 	}
 
 	if err = (&controllers.NatsAccountReconciler{

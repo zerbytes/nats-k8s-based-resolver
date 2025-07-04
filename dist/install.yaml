@@ -137,6 +137,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
+        description: NatsUser represents a user credential within a NATS account.
         properties:
           apiVersion:
             description: |-
@@ -358,7 +359,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: operator
-  name: operator-natsresolvers-admin-role
+  name: operator-natsresolver-admin-role
 rules:
 - apiGroups:
   - natsresolver.zerbytes.net
@@ -381,7 +382,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: operator
-  name: operator-natsresolvers-editor-role
+  name: operator-natsresolver-editor-role
 rules:
 - apiGroups:
   - natsresolver.zerbytes.net
@@ -410,7 +411,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: operator
-  name: operator-natsresolvers-viewer-role
+  name: operator-natsresolver-viewer-role
 rules:
 - apiGroups:
   - natsresolver.zerbytes.net

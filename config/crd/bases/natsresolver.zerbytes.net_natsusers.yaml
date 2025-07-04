@@ -26,6 +26,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
+        description: NatsUser represents a user credential within a NATS account.
         properties:
           apiVersion:
             description: |-
