@@ -31,7 +31,6 @@ __debug_bin*
 config.yaml
 
 /manager
-/resolver
 
 /kubebuilder
 
