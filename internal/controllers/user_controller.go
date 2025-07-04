@@ -24,21 +24,6 @@ import (
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
-const userCredsTemplate = `---- BEGIN NATS USER JWT ----
-%s
------- END NATS USER JWT ------
-
-************************* IMPORTANT *************************
-NKEY Seed printed below can be used to sign and prove identity.
-NKEYs are sensitive and should be treated as secrets.
-
------BEGIN USER NKEY SEED-----
-%s
-------END USER NKEY SEED------
-
-*************************************************************
-`
-
 // NatsUserReconciler reconciles a NatsUser object
 type NatsUserReconciler struct {
 	client.Client
@@ -136,7 +121,8 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		// limits
 		uc.Limits.Payload = desired.limits.payload
-		uc.Subs = desired.limits.subs
+		uc.Limits.Subs = desired.limits.subs
+		uc.Limits.Data = desired.limits.data
 		// perms
 		uc.Pub.Allow = desired.perms.pubAllow
 		uc.Pub.Deny = desired.perms.pubDeny
@@ -146,7 +132,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		jwtStr, _ = uc.Encode(accKp)
 		s, _ := userKp.Seed()
 		seedStr = string(s)
-		creds = fmt.Sprintf(userCredsTemplate, jwtStr, seedStr)
+		creds = fmt.Sprintf(credsTemplate, jwtStr, seedStr)
 	}
 
 	// 5. Create or update Secret
@@ -185,15 +171,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 	}
 
-	// 7. Push new JWT if changed
-	if changed {
-		if err := pushJWT(jwtStr); err != nil {
-			log.Error(err, "failed to push user JWT to NATS, will retry later", "user", user.Name)
-			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
-		}
-
-		log.Info("pushed user JWT to NATS", "user", user.Name, "account", acct.Name)
-	}
+	// No need to push user JWTs to the nats server/cluster.
 
 	return ctrl.Result{RequeueAfter: 12 * time.Hour}, nil
 }
@@ -201,7 +179,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 type userLimits struct {
 	payload int64
 	subs    int64
-	// extend with Msgs, Data, etc. as CRD evolves
+	data    int64
 }
 
 type userPerms struct {
@@ -225,10 +203,23 @@ func userDesiredFromSpec(u *natsv1alpha1.NatsUser) userDesired {
 	if u.Spec.Limits != nil {
 		if u.Spec.Limits.MaxPayload != nil {
 			d.limits.payload = *u.Spec.Limits.MaxPayload
+		} else {
+			d.limits.payload = natsjwt.NoLimit
 		}
 		if u.Spec.Limits.MaxSubs != nil {
 			d.limits.subs = *u.Spec.Limits.MaxSubs
+		} else {
+			d.limits.subs = natsjwt.NoLimit
 		}
+		if u.Spec.Limits.MaxData != nil {
+			d.limits.data = *u.Spec.Limits.MaxData
+		} else {
+			d.limits.data = natsjwt.NoLimit
+		}
+	} else {
+		d.limits.payload = natsjwt.NoLimit
+		d.limits.subs = natsjwt.NoLimit
+		d.limits.data = natsjwt.NoLimit
 	}
 	if u.Spec.Permissions != nil {
 		d.perms = userPerms{
@@ -236,6 +227,13 @@ func userDesiredFromSpec(u *natsv1alpha1.NatsUser) userDesired {
 			subAllow: u.Spec.Permissions.Subscribe.Allow,
 			pubDeny:  u.Spec.Permissions.Publish.Deny,
 			subDeny:  u.Spec.Permissions.Subscribe.Deny,
+		}
+	} else {
+		d.perms = userPerms{
+			pubAllow: []string{">"},
+			subAllow: []string{">", "_INBOX.>"},
+			pubDeny:  []string{},
+			subDeny:  []string{},
 		}
 	}
 	return d
@@ -245,6 +243,7 @@ func desiredFromClaims(uc *natsjwt.UserClaims) userDesired {
 	d := userDesired{exp: uc.Expires}
 	d.limits.payload = uc.Limits.Payload
 	d.limits.subs = uc.Subs
+	d.limits.data = uc.Data
 	d.perms = userPerms{
 		pubAllow: uc.Pub.Allow,
 		pubDeny:  uc.Pub.Deny,

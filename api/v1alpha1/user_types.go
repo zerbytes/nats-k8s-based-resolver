@@ -48,6 +48,10 @@ type UserLimits struct {
 	// MaxSubs caps how many subscriptions a connection can register.
 	// +optional
 	MaxSubs *int64 `json:"maxSubs,omitempty"`
+
+	// MaxData defines the maximum data a user can store in the server (bytes).
+	// +optional
+	MaxData *int64 `json:"maxData,omitempty"`
 }
 
 type UserPermissions struct {

@@ -200,8 +200,14 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		}
 
 		// $SYS account (no rotation on first boot)
-		if _, _, _, err := controllers.EnsureSysAccount(ctx, client, ns, opKP, false); err != nil {
+		sysKP, _, _, err := controllers.EnsureSysAccount(ctx, client, ns, opKP, false)
+		if err != nil {
 			return fmt.Errorf("bootstrap sys account: %w", err)
+		}
+		sysSeed, _ := sysKP.Seed()
+
+		if _, err := controllers.EnsureSysResolverUser(ctx, client, ns, sysSeed, false); err != nil {
+			return fmt.Errorf("bootstrap sys resolver user: %w", err)
 		}
 
 		return nil

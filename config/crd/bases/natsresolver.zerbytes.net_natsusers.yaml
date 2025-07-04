@@ -97,6 +97,11 @@ spec:
               limits:
                 description: Limits applied to this user (payload, subs, …).
                 properties:
+                  maxData:
+                    description: MaxData defines the maximum data a user can store
+                      in the server (bytes).
+                    format: int64
+                    type: integer
                   maxPayload:
                     description: MaxPayload defines the maximum message payload a
                       user can publish (bytes).

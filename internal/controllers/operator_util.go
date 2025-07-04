@@ -110,8 +110,22 @@ func EnsureSysAccount(ctx context.Context, c client.Client, ns string, opKp nkey
 
 	ac := natsjwt.NewAccountClaims(sysPub)
 	ac.Name = "$SYS"
-	ac.Limits = natsjwt.OperatorLimits{} // minimal limits – adjust as desired
-	sysJWT, _ := ac.Encode(opKp)         // signed by Operator
+	ac.Limits = natsjwt.OperatorLimits{
+		AccountLimits: natsjwt.AccountLimits{
+			Conn:            -1,
+			LeafNodeConn:    -1,
+			Imports:         -1,
+			Exports:         -1,
+			WildcardExports: true,
+			DisallowBearer:  false,
+		},
+		NatsLimits: natsjwt.NatsLimits{
+			Subs:    -1,
+			Data:    -1,
+			Payload: -1,
+		},
+	}
+	sysJWT, _ := ac.Encode(opKp) // signed by Operator
 	sysSeed, _ := sysKP.Seed()
 
 	// build / update Secret data map

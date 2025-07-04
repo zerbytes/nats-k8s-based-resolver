@@ -1,13 +1,36 @@
 package controllers
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	natsjwt "github.com/nats-io/jwt/v2"
 	"github.com/nats-io/nats.go"
+	nkeys "github.com/nats-io/nkeys"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+const credsTemplate = `---- BEGIN NATS USER JWT ----
+%s
+------ END NATS USER JWT ------
+
+************************* IMPORTANT *************************
+NKEY Seed printed below can be used to sign and prove identity.
+NKEYs are sensitive and should be treated as secrets.
+
+-----BEGIN USER NKEY SEED-----
+%s
+------END USER NKEY SEED------
+
+*************************************************************
+`
 
 var (
 	connOnce sync.Once
@@ -62,4 +85,47 @@ func extractJWTandSeed(creds string) (jwt, seed string) {
 		}
 	}
 	return
+}
+
+func EnsureSysResolverUser(ctx context.Context, c client.Client, ns string,
+	sysSeed []byte, rotate bool,
+) (creds string, err error) {
+	const secretName = "nats-sys-resolver-creds"
+
+	// 1. Reuse existing secret unless rotate == true
+	var sec corev1.Secret
+	if err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: ns}, &sec); err == nil && !rotate {
+		return string(sec.Data["resolver.creds"]), nil
+	}
+
+	// 2. Build an NKey & User JWT signed by the $SYS seed
+	sysKP, _ := nkeys.FromSeed(sysSeed)
+	sysPub, _ := sysKP.PublicKey()
+
+	userKP, _ := nkeys.CreateUser()
+	userPub, _ := userKP.PublicKey()
+
+	uc := natsjwt.NewUserClaims(userPub) // no extra limits
+	uc.IssuerAccount = sysPub
+	jwtStr, _ := uc.Encode(sysKP)
+	seed, _ := userKP.Seed()
+
+	creds = fmt.Sprintf(credsTemplate, jwtStr, seed) // same template you already have
+
+	// 3. Persist in Secret
+	sec = corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: ns,
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by": "nats-account-operator",
+			},
+		},
+		Type: corev1.SecretTypeOpaque,
+		StringData: map[string]string{
+			"resolver.creds": creds,
+		},
+	}
+	_ = client.IgnoreAlreadyExists(c.Create(ctx, &sec))
+	return creds, nil
 }

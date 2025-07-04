@@ -77,6 +77,49 @@ spec:
                   maxSubs:
                     type: integer
                 type: object
+              permissions:
+                description: Permissions for the account.
+                properties:
+                  publish:
+                    description: Publish defines the permissions for publishing messages.
+                    properties:
+                      allow:
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  response:
+                    description: Response defines the permissions for responding to
+                      messages.
+                    properties:
+                      max:
+                        type: integer
+                      ttl:
+                        description: |-
+                          A Duration represents the elapsed time between two instants
+                          as an int64 nanosecond count. The representation limits the
+                          largest representable duration to approximately 290 years.
+                        format: int64
+                        type: integer
+                    type: object
+                  subscribe:
+                    description: Subscribe defines the permissions for subscribing
+                      to messages.
+                    properties:
+                      allow:
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                type: object
               systemAccount:
                 default: false
                 description: |-

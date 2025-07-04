@@ -104,6 +104,18 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		ac.Limits.Payload = desired.limits.payload
 		ac.Limits.DiskStorage = desired.limits.diskStorage
 		ac.Limits.MemoryStorage = desired.limits.memoryStorage
+		ac.DefaultPermissions.Pub.Allow = desired.perms.pubAllow
+		ac.DefaultPermissions.Pub.Deny = desired.perms.pubDeny
+		ac.DefaultPermissions.Sub.Allow = desired.perms.subAllow
+		ac.DefaultPermissions.Sub.Deny = desired.perms.subDeny
+		if desired.perms.responseMaxMsgs > 0 || desired.perms.responseExpires > 0 {
+			ac.DefaultPermissions.Resp = &natsjwt.ResponsePermission{
+				MaxMsgs: desired.perms.responseMaxMsgs,
+				Expires: desired.perms.responseExpires,
+			}
+		} else {
+			ac.DefaultPermissions.Resp = nil
+		}
 		if desired.exp != 0 {
 			ac.Expires = desired.exp
 		}
@@ -168,14 +180,22 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 type accDesired struct {
 	limits accLimits
 	exp    int64
+	perms  accPerms
 }
 
 func (a accDesired) equal(b accDesired) bool {
-	return a == b
+	if a.exp != b.exp || a.limits != b.limits {
+		return false
+	}
+
+	return sliceEqual(a.perms.pubAllow, b.perms.pubAllow) &&
+		sliceEqual(a.perms.pubDeny, b.perms.pubDeny) &&
+		sliceEqual(a.perms.subAllow, b.perms.subAllow) &&
+		sliceEqual(a.perms.subDeny, b.perms.subDeny)
 }
 
 func accDesiredFromSpec(a *natsv1alpha1.NatsAccount) accDesired {
-	d := accDesired{limits: accLimitsFromSpec(a)}
+	d := accDesired{limits: accLimitsFromSpec(a), perms: accPermsFromSpec(a)}
 	if a.Spec.Expiration != nil {
 		d.exp = a.Spec.Expiration.Unix()
 	}
@@ -183,12 +203,18 @@ func accDesiredFromSpec(a *natsv1alpha1.NatsAccount) accDesired {
 }
 
 func accDesiredFromClaims(ac *natsjwt.AccountClaims) accDesired {
-	return accDesired{limits: accLimitsFromClaims(ac), exp: ac.Expires}
+	return accDesired{limits: accLimitsFromClaims(ac), exp: ac.Expires, perms: accPermsFromClaims(ac)}
 }
 
 type accLimits struct {
 	conns, subs, data, payload, diskStorage, memoryStorage int64
 	jetstream                                              bool
+}
+
+type accPerms struct {
+	pubAllow, subAllow, pubDeny, subDeny []string
+	responseMaxMsgs                      int
+	responseExpires                      time.Duration
 }
 
 func accLimitsFromSpec(a *natsv1alpha1.NatsAccount) accLimits {
@@ -197,44 +223,77 @@ func accLimitsFromSpec(a *natsv1alpha1.NatsAccount) accLimits {
 		if a.Spec.Limits.MaxConnections != nil {
 			l.conns = int64(*a.Spec.Limits.MaxConnections)
 		} else {
-			l.conns = -1 // default to unlimited if not set
+			l.conns = natsjwt.NoLimit // default to unlimited if not set
 		}
 		if a.Spec.Limits.MaxSubs != nil {
 			l.subs = int64(*a.Spec.Limits.MaxSubs)
 		} else {
-			l.subs = -1 // default to unlimited if not set
+			l.subs = natsjwt.NoLimit // default to unlimited if not set
 		}
 		if a.Spec.Limits.MaxData != nil {
 			l.data = int64(*a.Spec.Limits.MaxData)
 		} else {
-			l.data = -1 // default to unlimited if not set
+			l.data = natsjwt.NoLimit // default to unlimited if not set
 		}
 		if a.Spec.Limits.MaxPayload != nil {
 			l.payload = int64(*a.Spec.Limits.MaxPayload)
 		} else {
-			l.payload = -1 // default to unlimited if not set
+			l.payload = natsjwt.NoLimit // default to unlimited if not set
 		}
 		if a.Spec.Limits.MaxDiskStorage != nil {
 			l.diskStorage = int64(*a.Spec.Limits.MaxDiskStorage)
 		} else {
-			l.diskStorage = -1 // default to unlimited if not set
+			l.diskStorage = natsjwt.NoLimit // default to unlimited if not set
 		}
 		if a.Spec.Limits.MaxMemoryStorage != nil {
 			l.memoryStorage = int64(*a.Spec.Limits.MaxMemoryStorage)
 		} else {
-			l.memoryStorage = -1 // default to unlimited if not set
+			l.memoryStorage = natsjwt.NoLimit // default to unlimited if not set
 		}
 	} else {
 		// default to unlimited if not set
-		l.conns = -1
-		l.subs = -1
-		l.data = -1
-		l.payload = -1
-		l.diskStorage = -1
-		l.memoryStorage = -1
+		l.conns = natsjwt.NoLimit
+		l.subs = natsjwt.NoLimit
+		l.data = natsjwt.NoLimit
+		l.payload = natsjwt.NoLimit
+		l.diskStorage = natsjwt.NoLimit
+		l.memoryStorage = natsjwt.NoLimit
 	}
 	l.jetstream = a.Spec.JetStreamEnabled
 	return l
+}
+
+func accPermsFromSpec(a *natsv1alpha1.NatsAccount) accPerms {
+	var p accPerms
+	if a.Spec.Permissions != nil {
+		p.pubAllow = a.Spec.Permissions.Publish.Allow
+		p.pubDeny = a.Spec.Permissions.Publish.Deny
+		p.subAllow = a.Spec.Permissions.Subscribe.Allow
+		p.subDeny = a.Spec.Permissions.Subscribe.Deny
+		if a.Spec.Permissions.Resp != nil {
+			p.responseMaxMsgs = a.Spec.Permissions.Resp.MaxMsgs
+			p.responseExpires = a.Spec.Permissions.Resp.Expires
+		}
+	} else {
+		p.pubAllow = []string{">"}
+		p.subAllow = []string{">", "_INBOX.>"}
+		p.pubDeny = []string{}
+		p.subDeny = []string{}
+	}
+	return p
+}
+
+func accPermsFromClaims(ac *natsjwt.AccountClaims) accPerms {
+	var p accPerms
+	p.pubAllow = ac.DefaultPermissions.Pub.Allow
+	p.pubDeny = ac.DefaultPermissions.Pub.Deny
+	p.subAllow = ac.DefaultPermissions.Sub.Allow
+	p.subDeny = ac.DefaultPermissions.Sub.Deny
+	if ac.DefaultPermissions.Resp != nil {
+		p.responseMaxMsgs = ac.DefaultPermissions.Resp.MaxMsgs
+		p.responseExpires = ac.DefaultPermissions.Resp.Expires
+	}
+	return p
 }
 
 func accLimitsFromClaims(ac *natsjwt.AccountClaims) accLimits {

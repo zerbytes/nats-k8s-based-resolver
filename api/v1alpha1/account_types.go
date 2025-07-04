@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,7 +32,9 @@ type NatsAccountSpec struct {
 	// +optional
 	Limits *AccountLimits `json:"limits,omitempty"`
 
-	// TODO: permissions & exports/imports wiring into JWT generation.
+	// Permissions for the account.
+	// +optional
+	Permissions *AccountPermissions `json:"permissions,omitempty"`
 
 	// Expiration specifies an RFC3339 timestamp when the account JWT
 	// should expire. If omitted the JWT does not expire.
@@ -44,12 +48,37 @@ type NatsAccountSpec struct {
 }
 
 type AccountLimits struct {
-	MaxConnections   *int `json:"maxConnections,omitempty"`
-	MaxSubs          *int `json:"maxSubs,omitempty"`
-	MaxData          *int `json:"maxData,omitempty"`
-	MaxPayload       *int `json:"maxPayload,omitempty"`
-	MaxDiskStorage   *int `json:"maxDiskStorage,omitempty"`
+	// +optional
+	MaxConnections *int `json:"maxConnections,omitempty"`
+	// +optional
+	MaxSubs *int `json:"maxSubs,omitempty"`
+	// +optional
+	MaxData *int `json:"maxData,omitempty"`
+	// +optional
+	MaxPayload *int `json:"maxPayload,omitempty"`
+	// +optional
+	MaxDiskStorage *int `json:"maxDiskStorage,omitempty"`
+	// +optional
 	MaxMemoryStorage *int `json:"maxMemoryStorage,omitempty"`
+}
+
+type AccountPermissions struct {
+	// Publish defines the permissions for publishing messages.
+	Publish *Permission `json:"publish,omitempty"`
+	// Subscribe defines the permissions for subscribing to messages.
+	Subscribe *Permission `json:"subscribe,omitempty"`
+	// Response defines the permissions for responding to messages.
+	Resp *ResponsePermissions `json:"response,omitempty"`
+}
+
+type Permission struct {
+	Allow []string `json:"allow,omitempty"`
+	Deny  []string `json:"deny,omitempty"`
+}
+
+type ResponsePermissions struct {
+	MaxMsgs int           `json:"max,omitempty"`
+	Expires time.Duration `json:"ttl,omitempty"`
 }
 
 type NatsAccountStatus struct {
