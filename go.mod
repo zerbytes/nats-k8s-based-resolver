@@ -1,8 +1,6 @@
 module github.com/zerbytes/nats-k8s-based-resolver
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.24.4
 
 require (
 	github.com/alecthomas/kong v1.12.0
@@ -15,9 +13,9 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/puzpuzpuz/xsync/v4 v4.1.0
 	go.uber.org/zap v1.27.0
-	k8s.io/api v0.33.0
-	k8s.io/apimachinery v0.33.0
-	k8s.io/client-go v0.33.0
+	k8s.io/api v0.33.2
+	k8s.io/apimachinery v0.33.2
+	k8s.io/client-go v0.33.2
 	sigs.k8s.io/controller-runtime v0.21.0
 )
 
