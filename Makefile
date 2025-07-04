@@ -95,11 +95,11 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 build: vet ## Build manager binary.
 	CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a \
 		-ldflags "-X github.com/zerbytes/nats-k8s-based-resolver/pkg/version.Version=$(shell git describe --tags --exclude='nats-k8s-based-resolver-*')" \
-		-o bin/manager ./cmd/
+		-o bin/nats-k8s-based-resolver ./cmd/
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/manager/
+	go run ./cmd/
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.

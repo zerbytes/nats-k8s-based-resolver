@@ -18,12 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Build and publish in parallel: linux/amd64, linux/arm64, windows/amd64
-        goos: [linux, windows]
+        # Build and publish in parallel: linux/amd64, linux/arm64
+        goos: [linux]
         goarch: [amd64, arm64]
-        exclude:
-          - goarch: arm64
-            goos: windows
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +34,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
-          goversion: '1.24.1'
+          goversion: '1.24.4'
           binary_name: 'nats-k8s-based-resolver'
+          project_path: ./cmd
           extra_files: LICENSE README.md VERSION
           ldflags: '-X github.com/zerbytes/nats-k8s-based-resolver/pkg/version.Version=${{ env.APP_VERSION }}'

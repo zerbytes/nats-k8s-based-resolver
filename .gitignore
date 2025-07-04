@@ -30,6 +30,7 @@ __debug_bin*
 config.yaml
 
 /manager
+/nats-k8s-based-resolver
 
 /kubebuilder
 
