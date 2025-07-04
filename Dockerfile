@@ -13,6 +13,7 @@ COPY Makefile Makefile
 RUN go mod download
 
 # Copy the go source
+COPY .git/ .git/
 COPY cmd/ cmd/
 COPY api/ api/
 COPY internal/ internal/
