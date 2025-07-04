@@ -142,7 +142,7 @@ nats:
         readOnly: true
 ```
 
-(Currently these instructions are not tested and incomplete (additional volumes and volume mounts for secrets are missing), please open an issue if you have problems.)
+(Currently these instructions are not fully tested and might be incomplete, please open an issue if you encounter problems.)
 
 ## Contributing
 

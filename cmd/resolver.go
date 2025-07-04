@@ -14,27 +14,13 @@ import (
 	"github.com/puzpuzpuz/xsync/v4"
 	natsv1 "github.com/zerbytes/nats-based-resolver/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
-
-var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-)
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(corev1.AddToScheme(scheme))
-	utilruntime.Must(natsv1.AddToScheme(scheme))
-}
 
 type cacheEntry struct {
 	jwt string
@@ -62,7 +48,9 @@ var (
 
 var jwtCache = xsync.NewMap[string, cacheEntry]()
 
-func main() {
+type ResolverCmd struct{}
+
+func (c *ResolverCmd) Run(cli *MainCommand) error {
 	prometheus.MustRegister(lookupCounter, cacheHit, cacheMiss, pushCounter)
 
 	// 1. Connect to Kubernetes
@@ -76,7 +64,7 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "manager")
-		os.Exit(1)
+		return err
 	}
 
 	// Shared client for secret fetches
@@ -86,7 +74,7 @@ func main() {
 	accInformer, err := mgr.GetCache().GetInformer(context.TODO(), &natsv1.NatsAccount{})
 	if err != nil {
 		setupLog.Error(err, "informer")
-		os.Exit(1)
+		return err
 	}
 
 	if _, err := accInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -104,7 +92,7 @@ func main() {
 		},
 	}); err != nil {
 		setupLog.Error(err, "add event handler")
-		os.Exit(1)
+		return err
 	}
 
 	// 3. Connect to NATS
@@ -113,7 +101,7 @@ func main() {
 	nc, err := nats.Connect(natsURL, nats.UserCredentials(credsPath))
 	if err != nil {
 		setupLog.Error(err, "nats connect")
-		os.Exit(1)
+		return err
 	}
 	//nolint:errcheck
 	defer nc.Drain()
@@ -155,7 +143,7 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "subscribe")
-		os.Exit(1)
+		return err
 	}
 
 	// 5. Serve metrics
@@ -163,7 +151,7 @@ func main() {
 	log.Println("resolver service ready: metrics on :2112/metrics")
 	if err := http.ListenAndServe(":2112", nil); err != nil {
 		setupLog.Error(err, "metrics server")
-		os.Exit(1)
+		return err
 	}
 
 	select {}
