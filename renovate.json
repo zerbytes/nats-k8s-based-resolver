@@ -3,7 +3,7 @@
     "extends": [
         "github>nuxt/renovate-config-nuxt"
     ],
-    "baseBranches": ["develop"],
+    "baseBranches": ["main"],
     "postUpdateOptions": ["gomodTidy"],
     "nix": {
         "enabled": true
