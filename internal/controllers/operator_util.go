@@ -84,7 +84,7 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nke
 // EnsureSysAccount returns (sysKP, sysJWT string, sysPub string).
 // If rotate==true it generates a *new* account keypair & JWT, replacing
 // whatever is stored in the Secret.
-func EnsureSysAccount(ctx context.Context, c client.Client, ns string, opKp nkeys.KeyPair, rotate bool) (nkeys.KeyPair, string, string, error) {
+func EnsureSysAccount(ctx context.Context, natsURL string, natsCreds string, c client.Client, ns string, opKp nkeys.KeyPair, rotate bool) (nkeys.KeyPair, string, string, error) {
 	var sec corev1.Secret
 	err := c.Get(ctx, types.NamespacedName{Name: sysSecretName, Namespace: ns}, &sec)
 
@@ -162,7 +162,7 @@ func EnsureSysAccount(ctx context.Context, c client.Client, ns string, opKp nkey
 	}
 
 	// Optionally push updated JWT to NATS immediately (best effort)
-	_ = pushJWT(sysJWT) // ignore error at bootstrap
+	_ = pushJWT(natsURL, natsCreds, sysJWT) // ignore error at bootstrap
 
 	return sysKP, sysJWT, sysPub, nil
 }

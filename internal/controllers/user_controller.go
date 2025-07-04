@@ -121,8 +121,8 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		// limits
 		uc.Limits.Payload = desired.limits.payload
-		uc.Limits.Subs = desired.limits.subs
-		uc.Limits.Data = desired.limits.data
+		uc.Subs = desired.limits.subs
+		uc.Data = desired.limits.data
 		// perms
 		uc.Pub.Allow = desired.perms.pubAllow
 		uc.Pub.Deny = desired.perms.pubDeny

@@ -27,6 +27,9 @@ import (
 type NatsAccountReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	NatsURL   string
+	NatsCreds string
 }
 
 func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -168,7 +171,7 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// 5. Push JWT to NATS if changed
 	if changed {
-		if err := pushJWT(jwtStr); err != nil {
+		if err := pushJWT(r.NatsURL, r.NatsCreds, jwtStr); err != nil {
 			log.Error(err, "failed to push account JWT to NATS, will retry later", "account", acct.Name)
 			return ctrl.Result{}, err
 		}
@@ -270,9 +273,9 @@ func accPermsFromSpec(a *natsv1alpha1.NatsAccount) accPerms {
 		p.pubDeny = a.Spec.Permissions.Publish.Deny
 		p.subAllow = a.Spec.Permissions.Subscribe.Allow
 		p.subDeny = a.Spec.Permissions.Subscribe.Deny
-		if a.Spec.Permissions.Resp != nil {
-			p.responseMaxMsgs = a.Spec.Permissions.Resp.MaxMsgs
-			p.responseExpires = a.Spec.Permissions.Resp.Expires
+		if a.Spec.Permissions.Response != nil {
+			p.responseMaxMsgs = a.Spec.Permissions.Response.MaxMsgs
+			p.responseExpires = a.Spec.Permissions.Response.Expires
 		}
 	} else {
 		p.pubAllow = []string{">"}

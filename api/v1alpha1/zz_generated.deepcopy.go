@@ -82,8 +82,8 @@ func (in *AccountPermissions) DeepCopyInto(out *AccountPermissions) {
 		*out = new(Permission)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Resp != nil {
-		in, out := &in.Resp, &out.Resp
+	if in.Response != nil {
+		in, out := &in.Response, &out.Response
 		*out = new(ResponsePermissions)
 		**out = **in
 	}

@@ -8,14 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-logr/zapr"
-	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
 	"github.com/zerbytes/nats-k8s-based-resolver/internal/controllers"
-	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -24,17 +17,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
-
-var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-)
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(corev1.AddToScheme(scheme))
-	utilruntime.Must(natsv1alpha1.AddToScheme(scheme))
-}
 
 type MainCommand struct {
 	// Manager is the command to run the NATS-based resolver controller manager/operator.
@@ -45,6 +27,9 @@ type MainCommand struct {
 }
 
 type ManagerCmd struct {
+	NatsURL   string `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
+	NatsCreds string `required:"" env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
+
 	MetricsAddr          string `name:"metrics-bind-address" default:"0" help:"The address the metrics endpoint binds to. Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service."`
 	ProbeAddr            string `name:"health-probe-bind-address" default:":8081" help:"The address the probe endpoint binds to."`
 	EnableLeaderElection bool   `name:"leader-elect" default:"false" help:"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager."`
@@ -59,11 +44,10 @@ type ManagerCmd struct {
 }
 
 func (c *ManagerCmd) Run(cli *MainCommand) error {
-	zapLog, err := zap.NewDevelopment()
+	setupLog, err := setupLogging()
 	if err != nil {
-		panic(fmt.Sprintf("who watches the watchmen (%v)?", err))
+		return err
 	}
-	ctrl.SetLogger(zapr.NewLogger(zapLog))
 
 	var tlsOpts []func(*tls.Config)
 
@@ -200,7 +184,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		}
 
 		// $SYS account (no rotation on first boot)
-		sysKP, _, _, err := controllers.EnsureSysAccount(ctx, client, ns, opKP, false)
+		sysKP, _, _, err := controllers.EnsureSysAccount(ctx, cli.Manager.NatsURL, cli.Manager.NatsCreds, client, ns, opKP, false)
 		if err != nil {
 			return fmt.Errorf("bootstrap sys account: %w", err)
 		}
@@ -217,8 +201,10 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 	}
 
 	if err = (&controllers.NatsAccountReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		NatsURL:   cli.Manager.NatsURL,
+		NatsCreds: cli.Manager.NatsCreds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NatsAccount")
 		return err

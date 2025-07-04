@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -42,10 +41,8 @@ var (
 //
 //	NATS_URL   – e.g. nats://nats:4222
 //	NATS_CREDS – path to resolver creds (user in $SYS)
-func getNATSConn() (*nats.Conn, error) {
+func getNATSConn(url string, creds string) (*nats.Conn, error) {
 	connOnce.Do(func() {
-		url := os.Getenv("NATS_URL")
-		creds := os.Getenv("NATS_CREDS")
 		if url == "" {
 			url = "nats://nats:4222" // sensible default
 		}
@@ -61,8 +58,8 @@ func getNATSConn() (*nats.Conn, error) {
 // pushJWT publishes *any* NATS JWT (Account or User) on $SYS.REQ.CLAIMS.UPDATE.
 // NATS servers will parse and cache based on the JWT type.
 // Waits up to 2 s for an ACK but ignores the body.
-func pushJWT(jwt string) error {
-	nc, err := getNATSConn()
+func pushJWT(url string, creds string, jwt string) error {
+	nc, err := getNATSConn(url, creds)
 	if err != nil {
 		return err
 	}

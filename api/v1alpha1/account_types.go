@@ -68,7 +68,7 @@ type AccountPermissions struct {
 	// Subscribe defines the permissions for subscribing to messages.
 	Subscribe *Permission `json:"subscribe,omitempty"`
 	// Response defines the permissions for responding to messages.
-	Resp *ResponsePermissions `json:"response,omitempty"`
+	Response *ResponsePermissions `json:"response,omitempty"`
 }
 
 type Permission struct {

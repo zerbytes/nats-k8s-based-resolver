@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/zapr"
 	natsjwt "github.com/nats-io/jwt/v2"
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -55,43 +54,84 @@ var (
 var jwtCache = xsync.NewMap[string, cacheEntry]()
 
 type ResolverCmd struct {
-	NatsURL   string   `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
-	NATSCreds *os.File `required:"" env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
+	NatsURL   string `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
+	NatsCreds string `required:"" env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
 }
 
-func (c *ResolverCmd) Run(_ *MainCommand) error {
+func (c *ResolverCmd) Run(cli *MainCommand) error {
 	prometheus.MustRegister(lookupCounter, cacheHit, cacheMiss, pushCounter)
 
-	zapLog, err := zap.NewDevelopment()
+	setupLog, err := setupLogging()
 	if err != nil {
-		panic(fmt.Sprintf("who watches the watchmen (%v)?", err))
+		return err
 	}
-	ctrl.SetLogger(zapr.NewLogger(zapLog))
 
-	// 1. Connect to Kubernetes
-	cfg := config.GetConfigOrDie()
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: "0",
-		}, // disable default metrics
-		LeaderElection: false,
-	})
+	mgr, k8sClient, err := initK8sManager()
 	if err != nil {
 		setupLog.Error(err, "manager")
 		return err
 	}
 
-	// Shared client for secret fetches
-	k8sClient := mgr.GetClient()
-
-	// 2. In-memory cache populated via informer
-	accInformer, err := mgr.GetCache().GetInformer(context.TODO(), &natsv1alpha1.NatsAccount{})
-	if err != nil {
+	if err := setupAccountInformer(mgr, k8sClient); err != nil {
 		setupLog.Error(err, "informer")
 		return err
 	}
 
+	ns := os.Getenv("POD_NAMESPACE")
+	if ns == "" {
+		ns = "default"
+	}
+
+	nc, err := connectNATS(cli.Resolver.NatsURL, cli.Resolver.NatsCreds, setupLog)
+	if err != nil {
+		return err
+	}
+	//nolint:errcheck
+	defer nc.Drain()
+
+	if err := preloadJWTs(mgr, k8sClient, ns); err != nil {
+		return err
+	}
+
+	if err := setupNATSSubscriptions(nc, k8sClient, setupLog); err != nil {
+		return err
+	}
+
+	if err := startMetricsServer(mgr); err != nil {
+		return err
+	}
+
+	setupLog.Info("starting resolver")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running resolver")
+		return err
+	}
+
+	return nil
+}
+
+// initK8sManager initializes the Kubernetes manager and client
+func initK8sManager() (manager.Manager, client.Client, error) {
+	cfg := config.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: "0",
+		},
+		LeaderElection: false,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return mgr, mgr.GetClient(), nil
+}
+
+// setupAccountInformer sets up the informer and cache event handlers
+func setupAccountInformer(mgr manager.Manager, k8sClient client.Client) error {
+	accInformer, err := mgr.GetCache().GetInformer(context.TODO(), &natsv1alpha1.NatsAccount{})
+	if err != nil {
+		return err
+	}
 	if _, err := accInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			account := obj.(*natsv1alpha1.NatsAccount)
@@ -106,27 +146,24 @@ func (c *ResolverCmd) Run(_ *MainCommand) error {
 			jwtCache.Delete(account.Status.AccountPublicKey)
 		},
 	}); err != nil {
-		setupLog.Error(err, "add event handler")
 		return err
 	}
+	return nil
+}
 
-	ns := os.Getenv("POD_NAMESPACE")
-	if ns == "" {
-		ns = "default"
-	}
-
-	// 3. Connect to NATS
-	natsURL := os.Getenv("NATS_URL")
-	credsPath := os.Getenv("NATS_CREDS")
-	nc, err := nats.Connect(natsURL, nats.UserCredentials(credsPath))
+// connectNATS connects to the NATS server
+func connectNATS(url, creds string, setupLog *zap.SugaredLogger) (*nats.Conn, error) {
+	nc, err := nats.Connect(url, nats.UserCredentials(creds))
 	if err != nil {
 		setupLog.Error(err, "nats connect")
-		return err
+		return nil, err
 	}
-	//nolint:errcheck
-	defer nc.Drain()
+	return nc, nil
+}
 
-	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+// preloadJWTs preloads operator and $SYS JWTs into the cache
+func preloadJWTs(mgr manager.Manager, k8sClient client.Client, ns string) error {
+	return mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		// 1. wait until the informer cache is ready
 		if ok := mgr.GetCache().WaitForCacheSync(ctx); !ok {
 			return fmt.Errorf("cache never syncs")
@@ -167,20 +204,22 @@ func (c *ResolverCmd) Run(_ *MainCommand) error {
 		}
 
 		return nil
-	})); err != nil {
-		setupLog.Error(err, "add runnable")
-		return err
-	}
+	}))
+}
 
-	// 4. Subscribe for account lookup requests
-	_, err = nc.Subscribe("$SYS.REQ.OPERATOR.CLAIMS.LOOKUP", func(m *nats.Msg) {
+// setupNATSSubscriptions sets up NATS subscriptions for account lookups
+func setupNATSSubscriptions(nc *nats.Conn, k8sClient client.Client, setupLog *zap.SugaredLogger) error {
+	_, err := nc.Subscribe("$SYS.REQ.OPERATOR.CLAIMS.LOOKUP", func(m *nats.Msg) {
 		if entry, ok := jwtCache.Load("operator"); ok {
 			_ = m.Respond([]byte(entry.jwt))
 		} else {
 			_ = m.Respond(nil)
 		}
 	})
-
+	if err != nil {
+		setupLog.Error(err, "subscribe operator lookup")
+		return err
+	}
 	_, err = nc.Subscribe("$SYS.REQ.ACCOUNT.*.CLAIMS.LOOKUP", func(m *nats.Msg) {
 		lookupCounter.Inc()
 		parts := strings.Split(m.Subject, ".")
@@ -223,12 +262,15 @@ func (c *ResolverCmd) Run(_ *MainCommand) error {
 		}
 	})
 	if err != nil {
-		setupLog.Error(err, "subscribe")
+		setupLog.Error(err, "subscribe account lookup")
 		return err
 	}
+	return nil
+}
 
-	// 5. Serve metrics
-	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+// startMetricsServer starts the Prometheus metrics server
+func startMetricsServer(mgr manager.Manager) error {
+	return mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
 
@@ -248,17 +290,7 @@ func (c *ResolverCmd) Run(_ *MainCommand) error {
 			return err
 		}
 		return nil
-	})); err != nil {
-		log.Fatalf("add metrics runnable: %v", err)
-	}
-
-	setupLog.Info("starting resolver")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running resolver")
-		return err
-	}
-
-	return nil
+	}))
 }
 
 // maybeUpdateCache loads the JWT from the referenced secret and updates map
