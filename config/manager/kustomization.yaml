@@ -6,3 +6,13 @@ images:
 - name: controller
   newName: ghcr.io/zerbytes/nats-k8s-based-resolver
   newTag: latest
+
+
+patches:
+- patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --nats-url=nats://nats:4222
+  target:
+    name: controller-manager
+    kind: Deployment
