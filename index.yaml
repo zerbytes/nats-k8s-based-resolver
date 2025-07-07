@@ -1,0 +1,15 @@
+apiVersion: v1
+entries:
+  nats-k8s-based-resolver:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2025-07-07T11:07:14.156007087Z"
+    description: A Helm chart to distribute the project nats-k8s-based-resolver
+    digest: 20dbe1acac967ea90ed63b8875f8f66c8b26176ee63851c481823325bca74168
+    icon: https://example.com/icon.png
+    name: nats-k8s-based-resolver
+    type: application
+    urls:
+    - https://github.com/zerbytes/nats-k8s-based-resolver/releases/download/nats-k8s-based-resolver-0.1.0/nats-k8s-based-resolver-0.1.0.tgz
+    version: 0.1.0
+generated: "2025-07-07T11:07:14.156012608Z"
