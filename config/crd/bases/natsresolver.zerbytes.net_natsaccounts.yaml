@@ -84,10 +84,14 @@ spec:
                     description: Publish defines the permissions for publishing messages.
                     properties:
                       allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
                         items:
                           type: string
                         type: array
                       deny:
+                        description: Subjects that are explicitly denied.
                         items:
                           type: string
                         type: array
@@ -111,10 +115,14 @@ spec:
                       to messages.
                     properties:
                       allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
                         items:
                           type: string
                         type: array
                       deny:
+                        description: Subjects that are explicitly denied.
                         items:
                           type: string
                         type: array

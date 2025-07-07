@@ -64,16 +64,11 @@ type AccountLimits struct {
 
 type AccountPermissions struct {
 	// Publish defines the permissions for publishing messages.
-	Publish *Permission `json:"publish,omitempty"`
+	Publish PermissionRules `json:"publish,omitempty"`
 	// Subscribe defines the permissions for subscribing to messages.
-	Subscribe *Permission `json:"subscribe,omitempty"`
+	Subscribe PermissionRules `json:"subscribe,omitempty"`
 	// Response defines the permissions for responding to messages.
 	Response *ResponsePermissions `json:"response,omitempty"`
-}
-
-type Permission struct {
-	Allow []string `json:"allow,omitempty"`
-	Deny  []string `json:"deny,omitempty"`
 }
 
 type ResponsePermissions struct {

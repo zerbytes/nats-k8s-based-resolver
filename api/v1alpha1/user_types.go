@@ -64,18 +64,6 @@ type UserPermissions struct {
 	Subscribe PermissionRules `json:"subscribe,omitempty"`
 }
 
-// Permission rule helper – Allow/Deny lists of subjects.
-type PermissionRules struct {
-	// Subjects that are explicitly allowed.
-	// Use NATS wildcards (>, *).
-	// +kubebuilder:validation:Optional
-	Allow []string `json:"allow,omitempty"`
-
-	// Subjects that are explicitly denied.
-	// +kubebuilder:validation:Optional
-	Deny []string `json:"deny,omitempty"`
-}
-
 type NatsUserStatus struct {
 	Ready         bool   `json:"ready,omitempty"`
 	UserPublicKey string `json:"userPublicKey,omitempty"`

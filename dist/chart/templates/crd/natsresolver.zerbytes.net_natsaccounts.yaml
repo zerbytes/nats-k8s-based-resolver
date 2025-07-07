@@ -9,7 +9,7 @@ metadata:
     {{- if .Values.crd.keep }}
     "helm.sh/resource-policy": keep
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.17.2
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: natsaccounts.natsresolver.zerbytes.net
 spec:
   group: natsresolver.zerbytes.net
@@ -72,14 +72,67 @@ spec:
                 properties:
                   maxConnections:
                     type: integer
-                  maxMsgs:
+                  maxData:
+                    type: integer
+                  maxDiskStorage:
+                    type: integer
+                  maxMemoryStorage:
                     type: integer
                   maxPayload:
                     type: integer
-                  maxStorage:
-                    type: integer
                   maxSubs:
                     type: integer
+                type: object
+              permissions:
+                description: Permissions for the account.
+                properties:
+                  publish:
+                    description: Publish defines the permissions for publishing messages.
+                    properties:
+                      allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        description: Subjects that are explicitly denied.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  response:
+                    description: Response defines the permissions for responding to
+                      messages.
+                    properties:
+                      max:
+                        type: integer
+                      ttl:
+                        description: |-
+                          A Duration represents the elapsed time between two instants
+                          as an int64 nanosecond count. The representation limits the
+                          largest representable duration to approximately 290 years.
+                        format: int64
+                        type: integer
+                    type: object
+                  subscribe:
+                    description: Subscribe defines the permissions for subscribing
+                      to messages.
+                    properties:
+                      allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        description: Subjects that are explicitly denied.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                 type: object
               systemAccount:
                 default: false

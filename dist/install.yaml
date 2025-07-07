@@ -74,14 +74,67 @@ spec:
                 properties:
                   maxConnections:
                     type: integer
-                  maxMsgs:
+                  maxData:
+                    type: integer
+                  maxDiskStorage:
+                    type: integer
+                  maxMemoryStorage:
                     type: integer
                   maxPayload:
                     type: integer
-                  maxStorage:
-                    type: integer
                   maxSubs:
                     type: integer
+                type: object
+              permissions:
+                description: Permissions for the account.
+                properties:
+                  publish:
+                    description: Publish defines the permissions for publishing messages.
+                    properties:
+                      allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        description: Subjects that are explicitly denied.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  response:
+                    description: Response defines the permissions for responding to
+                      messages.
+                    properties:
+                      max:
+                        type: integer
+                      ttl:
+                        description: |-
+                          A Duration represents the elapsed time between two instants
+                          as an int64 nanosecond count. The representation limits the
+                          largest representable duration to approximately 290 years.
+                        format: int64
+                        type: integer
+                    type: object
+                  subscribe:
+                    description: Subscribe defines the permissions for subscribing
+                      to messages.
+                    properties:
+                      allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        description: Subjects that are explicitly denied.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                 type: object
               systemAccount:
                 default: false
@@ -205,10 +258,60 @@ spec:
                 description: Expiration RFC3339 time - optional, infinite if omitted.
                 format: date-time
                 type: string
+              limits:
+                description: Limits applied to this user (payload, subs, …).
+                properties:
+                  maxData:
+                    description: MaxData defines the maximum data a user can store
+                      in the server (bytes).
+                    format: int64
+                    type: integer
+                  maxPayload:
+                    description: MaxPayload defines the maximum message payload a
+                      user can publish (bytes).
+                    format: int64
+                    type: integer
+                  maxSubs:
+                    description: MaxSubs caps how many subscriptions a connection
+                      can register.
+                    format: int64
+                    type: integer
+                type: object
               permissions:
-                description: |-
-                  Permissions placeholder - will be mapped to publish/subscribe
-                  permissions in the user JWT.
+                description: Permissions (publish / subscribe allow|deny lists).
+                properties:
+                  publish:
+                    description: Publish rules
+                    properties:
+                      allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        description: Subjects that are explicitly denied.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  subscribe:
+                    description: Subscribe rules
+                    properties:
+                      allow:
+                        description: |-
+                          Subjects that are explicitly allowed.
+                          Use NATS wildcards (>, *).
+                        items:
+                          type: string
+                        type: array
+                      deny:
+                        description: Subjects that are explicitly denied.
+                        items:
+                          type: string
+                        type: array
+                    type: object
                 type: object
             required:
             - accountRef
@@ -223,6 +326,7 @@ spec:
                 type: string
             type: object
         type: object
+        x-kubernetes-preserve-unknown-fields: true
     served: true
     storage: true
     subresources:
@@ -523,7 +627,6 @@ spec:
         - --metrics-bind-address=:8443
         - --leader-elect
         - --health-probe-bind-address=:8081
-        # Your NATS server/cluster URL here
         - --nats-url=nats://nats:4222
         image: ghcr.io/zerbytes/nats-k8s-based-resolver:latest
         livenessProbe:

@@ -14,5 +14,5 @@ patches:
       path: /spec/template/spec/containers/0/args/-
       value: --nats-url=nats://nats:4222
   target:
-    name: controller-manager
     kind: Deployment
+    name: controller-manager
