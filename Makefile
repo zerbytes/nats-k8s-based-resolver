@@ -171,6 +171,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+HELM_DOCS = $(LOCALBIN)/helm-docs
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.7.0
@@ -224,3 +225,19 @@ mv $(1) $(1)-$(3) ;\
 } ;\
 ln -sf $(1)-$(3) $(1)
 endef
+
+# ====================================================================================
+# Makefile helper functions for helm-docs: https://github.com/norwoodj/helm-docs
+HELM_DOCS_REPO := github.com/norwoodj/helm-docs/cmd/helm-docs
+HELM_DOCS_VERSION := v1.11.0
+
+bin-$(HELM_DOCS): $(LOCALBIN) ## Installs helm-docs
+	$(call go-install-tool,$(HELM_DOCS),$(HELM_DOCS_REPO),$(HELM_DOCS_VERSION))
+
+.PHONY: helm-docs
+helm-docs: bin-$(HELM_DOCS) ## Use helm-docs to generate documentation from helm charts
+	$(HELM_DOCS) -c ./dist \
+		-o README.md \
+		-t README.gotmpl.md \
+		-t _templates.gotmpl
+
