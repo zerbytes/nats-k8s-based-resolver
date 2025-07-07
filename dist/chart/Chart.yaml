@@ -2,5 +2,5 @@ apiVersion: v2
 name: nats-k8s-based-resolver
 description: A Helm chart to distribute the nats-k8s-based-resolver project 
 type: application
-version: 0.2.0
-appVersion: "0.0.3"
+version: 0.2.1
+appVersion: "v0.0.3"
