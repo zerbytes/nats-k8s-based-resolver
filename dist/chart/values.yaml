@@ -3,8 +3,8 @@ controllerManager:
   replicas: 1
   container:
     image:
-      repository: controller
-      tag: latest
+      repository: ghcr.io/zerbytes/nats-k8s-based-resolver
+      tag: main
     args:
       - "--leader-elect"
       - "--metrics-bind-address=:8443"

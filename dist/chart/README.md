@@ -44,8 +44,8 @@ The following table lists the configurable parameters of the nats-k8s-based-reso
 | `controllerManager.container.args[1]` |  | `"--metrics-bind-address=:8443"` |
 | `controllerManager.container.args[2]` |  | `"--health-probe-bind-address=:8081"` |
 | `controllerManager.container.args[3]` |  | `"--nats-url=nats://nats:4222"` |
-| `controllerManager.container.image.repository` |  | `"controller"` |
-| `controllerManager.container.image.tag` |  | `"latest"` |
+| `controllerManager.container.image.repository` |  | `"ghcr.io/zerbytes/nats-k8s-based-resolver"` |
+| `controllerManager.container.image.tag` |  | `"main"` |
 | `controllerManager.container.livenessProbe.httpGet.path` |  | `"/healthz"` |
 | `controllerManager.container.livenessProbe.httpGet.port` |  | `8081` |
 | `controllerManager.container.livenessProbe.initialDelaySeconds` |  | `15` |
