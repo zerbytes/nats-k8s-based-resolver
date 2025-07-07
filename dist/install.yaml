@@ -319,10 +319,15 @@ spec:
           status:
             properties:
               ready:
+                description: Ready indicates that the user creds secret was successfully
+                  created.
                 type: boolean
               secretName:
+                description: SecretName referencing the Kubernetes Secret with the
+                  creds.
                 type: string
               userPublicKey:
+                description: UserPublicKey contains the public NKey of the user.
                 type: string
             type: object
         type: object

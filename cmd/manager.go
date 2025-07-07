@@ -164,17 +164,19 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		return err
 	}
 
+	// Use POD_NAMESPACE (set by the Helm chart) or fallback "default"
+	ns := os.Getenv("POD_NAMESPACE")
+	if ns == "" {
+		ns = "default"
+	}
+
 	// Bootstrap: Operator key & $SYS account Secret
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		// 1. Wait for informer cache
 		if ok := mgr.GetCache().WaitForCacheSync(ctx); !ok {
 			return fmt.Errorf("cache never syncs")
 		}
-		// Use POD_NAMESPACE (set by the Helm chart) or fallback "default"
-		ns := os.Getenv("POD_NAMESPACE")
-		if ns == "" {
-			ns = "default"
-		}
+
 		client := mgr.GetClient()
 
 		// Operator key
@@ -199,6 +201,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 	if err = (&controllers.NatsAccountReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		NS:     ns,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NatsAccount")
 		return err
@@ -206,6 +209,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 	if err = (&controllers.NatsUserReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		NS:     ns,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NatsUser")
 		return err

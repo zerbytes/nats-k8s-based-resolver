@@ -245,7 +245,7 @@ func setupNATSSubscriptions(nc *nats.Conn, k8sClient client.Client, setupLog *za
 		cacheMiss.Inc()
 		// On miss, fetch from K8s
 		var list natsv1alpha1.NatsAccountList
-		if err := k8sClient.List(context.TODO(), &list); err == nil {
+		if err := k8sClient.List(context.TODO(), &list, &client.ListOptions{Namespace: ""}); err == nil {
 			for _, a := range list.Items {
 				if a.Status.AccountPublicKey == accountID && a.Status.SecretName != "" {
 					var sec corev1.Secret
@@ -274,6 +274,7 @@ func setupNATSSubscriptions(nc *nats.Conn, k8sClient client.Client, setupLog *za
 		setupLog.Error(err, "subscribe account lookup")
 		return err
 	}
+
 	return nil
 }
 

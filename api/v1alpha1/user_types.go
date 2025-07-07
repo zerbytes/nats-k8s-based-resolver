@@ -65,9 +65,14 @@ type UserPermissions struct {
 }
 
 type NatsUserStatus struct {
-	Ready         bool   `json:"ready,omitempty"`
+	// Ready indicates that the user creds secret was successfully created.
+	Ready bool `json:"ready,omitempty"`
+
+	// UserPublicKey contains the public NKey of the user.
 	UserPublicKey string `json:"userPublicKey,omitempty"`
-	SecretName    string `json:"secretName,omitempty"`
+
+	// SecretName referencing the Kubernetes Secret with the creds.
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -78,6 +83,5 @@ type NatsUserList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&NatsAccount{}, &NatsAccountList{})
 	SchemeBuilder.Register(&NatsUser{}, &NatsUserList{})
 }

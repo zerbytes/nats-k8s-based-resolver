@@ -151,12 +151,6 @@ config:
 # Extra volumes, mounts, and env so the server sees the Secrets
 container:
   env:
-    SYS_OPERATOR_PK:
-      valueFrom:
-        secretKeyRef:
-          name: nats-operator-jwt
-          key:  pub          # (added below in the controller)
-
     SYS_ACCOUNT_PK:
       valueFrom:
         secretKeyRef:

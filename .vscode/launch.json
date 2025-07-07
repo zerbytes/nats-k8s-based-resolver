@@ -12,7 +12,7 @@
             "program": "${workspaceFolder}/cmd/",
             "env": {
                 "NATS_CREDS": "${workspaceFolder}/nats-server-v2.11.6-linux-amd64/sys.creds",
-                "NATS_URL": "nats://localhost:4222",
+                "NATS_URL": "nats://localhost:4223",
             }
         },
         {
@@ -26,7 +26,7 @@
             ],
             "env": {
                 "NATS_CREDS": "${workspaceFolder}/nats-server-v2.11.6-linux-amd64/sys.creds",
-                "NATS_URL": "nats://localhost:4222",
+                "NATS_URL": "nats://localhost:4223",
             }
         }
     ]

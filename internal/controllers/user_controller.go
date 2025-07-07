@@ -28,6 +28,7 @@ import (
 type NatsUserReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	NS     string
 }
 
 func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -88,7 +89,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			if jwtStr != "" && seedStr != "" {
 				if kp, e := nkeys.FromSeed([]byte(seedStr)); e == nil {
 					userKp = kp
-					pubKey, _ = kp.PublicKey()
+					pubKey, _ = userKp.PublicKey()
 				}
 			}
 		}

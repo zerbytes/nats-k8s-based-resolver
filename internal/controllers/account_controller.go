@@ -27,6 +27,7 @@ import (
 type NatsAccountReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	NS     string
 }
 
 func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -92,7 +93,7 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if changed {
 		// build new JWT
-		opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, acct.Namespace)
+		opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, r.NS)
 		if err != nil {
 			return ctrl.Result{}, err
 		}

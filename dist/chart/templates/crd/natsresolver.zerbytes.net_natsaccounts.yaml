@@ -154,6 +154,9 @@ spec:
                 description: SecretName referencing the Kubernetes Secret with the
                   JWT.
                 type: string
+              subject:
+                description: AccountSubject is the NATS JWT account subject.
+                type: string
             type: object
         type: object
     served: true
