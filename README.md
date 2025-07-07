@@ -130,7 +130,8 @@ If you are using the [NATS Helm Chart](https://github.com/nats-io/k8s), you can 
 
 ```yaml
 # values.yaml
-nats:
+config:
+  # [...]
   # JWT / Operator / System-account settings
   auth:
     enabled: true
@@ -161,31 +162,60 @@ nats:
         secretName: nats-sys-account-jwt
         key: jwt
 
-  # Extra volumes, mounts, and env so the server sees the Secrets
-  podTemplate:
-    env:
-      # expose the public key from the Secret as an env-var
-      - name: SYS_ACCOUNT_PK
-        valueFrom:
-          secretKeyRef:
-            name: nats-sys-account-jwt
-            key:  pub          # (added below in the controller)
-
-    extraVolumes:
-      - name: operator-jwt
+# Extra volumes, mounts, and env so the server sees the Secrets
+container:
+  env:
+    # expose the public key from the Secret as an env-var
+    - name: SYS_ACCOUNT_PK
+      valueFrom:
+        secretKeyRef:
+          name: nats-sys-account-jwt
+          key:  pub          # (added below in the controller)
+  
+  patch:
+    - op: add
+      path: /spec/template/spec/volumes/-
+      value:
+        name: operator-jwt
         secret:
           secretName: nats-operator-jwt
-      - name: sys-account-jwt
+
+    - op: add
+      path: /spec/template/spec/volumes/-
+      value:
+        name: sys-account-jwt
         secret:
           secretName: nats-sys-account-jwt
 
-    extraVolumeMounts:
-      - name: operator-jwt
+    - op: add
+      path: /spec/template/spec/containers/0/volumeMounts/-
+      value:
+        name: operator-jwt
         mountPath: /etc/nkeys/operator
         readOnly: true
-      - name: sys-account-jwt
+
+    - op: add
+      path: /spec/template/spec/containers/0/volumeMounts/-
+      value:
+        name: sys-account-jwt
         mountPath: /etc/nkeys/accounts
         readOnly: true
+
+  extraVolumes:
+    - name: operator-jwt
+      secret:
+        secretName: nats-operator-jwt
+    - name: sys-account-jwt
+      secret:
+        secretName: nats-sys-account-jwt
+
+  extraVolumeMounts:
+    - name: operator-jwt
+      mountPath: /etc/nkeys/operator
+      readOnly: true
+    - name: sys-account-jwt
+      mountPath: /etc/nkeys/accounts
+      readOnly: true
 ```
 
 (Currently these instructions are not fully tested and might be incomplete, please open an issue if you encounter problems.)
