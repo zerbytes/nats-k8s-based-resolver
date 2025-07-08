@@ -1,7 +1,8 @@
-<p alin="center">
+<p align="center">
   <img src=".github/readme/logo.png" alt="nats-k8s-based-resolver Logo" width="250"/>
-
-  <small>(see [Logo Attribution](#logo-attribution) below)</small>
+</p>
+<p align="center">
+  <sup><sub>(see <a href="#logo-attribution">Logo Attribution</a> below)</sub></sup>
 </p>
 
 # nats-k8s-based-resolver - NATS Account Resolver
