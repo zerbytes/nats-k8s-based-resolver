@@ -51,7 +51,7 @@ spec:
             {{- toYaml .Values.resolver.container.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.resolver.container.securityContext | nindent 12 }}
-          {{- if and .Values.certmanager.enable (or .Values.webhook.enable .Values.metrics.enable) }}
+          {{- if or (and .Values.certmanager.enable (or .Values.webhook.enable .Values.metrics.enable)) .Values.resolver.container.additionalVolumes }}
           volumeMounts:
             {{- if and .Values.metrics.enable .Values.certmanager.enable }}
             - name: metrics-certs
