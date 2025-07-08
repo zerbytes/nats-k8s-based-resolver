@@ -30,6 +30,7 @@ type NatsAccountReconciler struct {
 	NS     string
 }
 
+//nolint:gocyclo
 func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 
