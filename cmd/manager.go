@@ -18,29 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-type MainCommand struct {
-	// Manager is the command to run the NATS-based resolver controller manager/operator.
-	Manager ManagerCmd `cmd:"" default:"withargs" help:"Run the NATS-based resolver controller manager/operator."`
-
-	// Resolver is the command to run the NATS-based resolver.
-	Resolver ResolverCmd `cmd:"" help:"Run the NATS-based resolver resolver."`
-}
-
 type ManagerCmd struct {
-	NatsURL   string `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
-	NatsCreds string `env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\"), will fallback to loading the secret from Kubernetes directly and storing in temporary file."`
-
-	MetricsAddr          string `name:"metrics-bind-address" default:"0" help:"The address the metrics endpoint binds to. Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service."`
-	ProbeAddr            string `name:"health-probe-bind-address" default:":8081" help:"The address the probe endpoint binds to."`
-	EnableLeaderElection bool   `name:"leader-elect" default:"false" help:"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager."`
-	SecureMetrics        bool   `name:"metrics-secure" default:"true" help:"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead."`
-	WebhookCertPath      string `name:"webhook-cert-path" default:"" help:"The directory that contains the webhook certificate."`
-	WebhookCertName      string `name:"webhook-cert-name" default:"tls.crt" help:"The name of the webhook certificate file."`
-	WebhookCertKey       string `name:"webhook-cert-key" default:"tls.key" help:"The name of the webhook key file."`
-	MetricsCertPath      string `name:"metrics-cert-path" default:"" help:"The directory that contains the metrics server certificate."`
-	MetricsCertName      string `name:"metrics-cert-name" default:"tls.crt" help:"The name of the metrics server certificate file."`
-	MetricsCertKey       string `name:"metrics-cert-key" default:"tls.key" help:"The name of the metrics server key file."`
-	EnableHTTP2          bool   `name:"enable-http2" default:"false" help:"If set, HTTP/2 will be enabled for the metrics and webhook servers"`
+	WebhookCertPath string `name:"webhook-cert-path" default:"" help:"The directory that contains the webhook certificate."`
+	WebhookCertName string `name:"webhook-cert-name" default:"tls.crt" help:"The name of the webhook certificate file."`
+	WebhookCertKey  string `name:"webhook-cert-key" default:"tls.key" help:"The name of the webhook key file."`
 }
 
 func (c *ManagerCmd) Run(cli *MainCommand) error {
@@ -62,7 +43,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		c.NextProtos = []string{"http/1.1"}
 	}
 
-	if !cli.Manager.EnableHTTP2 {
+	if !cli.EnableHTTP2 {
 		tlsOpts = append(tlsOpts, disableHTTP2)
 	}
 
@@ -100,12 +81,12 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/metrics/server
 	// - https://book.kubebuilder.io/reference/metrics.html
 	metricsServerOptions := metricsserver.Options{
-		BindAddress:   cli.Manager.MetricsAddr,
-		SecureServing: cli.Manager.SecureMetrics,
+		BindAddress:   cli.MetricsAddr,
+		SecureServing: cli.SecureMetrics,
 		TLSOpts:       tlsOpts,
 	}
 
-	if cli.Manager.SecureMetrics {
+	if cli.SecureMetrics {
 		// FilterProvider is used to protect the metrics endpoint with authn/authz.
 		// These configurations ensure that only authorized users and service accounts
 		// can access the metrics endpoint. The RBAC are configured in 'config/rbac/kustomization.yaml'. More info:
@@ -121,14 +102,14 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 	// - [METRICS-WITH-CERTS] at config/default/kustomization.yaml to generate and use certificates
 	// managed by cert-manager for the metrics server.
 	// - [PROMETHEUS-WITH-CERTS] at config/prometheus/kustomization.yaml for TLS certification.
-	if len(cli.Manager.MetricsCertPath) > 0 {
+	if len(cli.MetricsCertPath) > 0 {
 		setupLog.Info("Initializing metrics certificate watcher using provided certificates",
-			"metrics-cert-path", cli.Manager.MetricsCertPath, "metrics-cert-name", cli.Manager.MetricsCertName, "metrics-cert-key", cli.Manager.MetricsCertKey)
+			"metrics-cert-path", cli.MetricsCertPath, "metrics-cert-name", cli.MetricsCertName, "metrics-cert-key", cli.MetricsCertKey)
 
 		var err error
 		metricsCertWatcher, err = certwatcher.New(
-			filepath.Join(cli.Manager.MetricsCertPath, cli.Manager.MetricsCertName),
-			filepath.Join(cli.Manager.MetricsCertPath, cli.Manager.MetricsCertKey),
+			filepath.Join(cli.MetricsCertPath, cli.MetricsCertName),
+			filepath.Join(cli.MetricsCertPath, cli.MetricsCertKey),
 		)
 		if err != nil {
 			setupLog.Error(err, "to initialize metrics certificate watcher", "error", err)
@@ -144,8 +125,8 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
-		HealthProbeBindAddress: cli.Manager.ProbeAddr,
-		LeaderElection:         cli.Manager.EnableLeaderElection,
+		HealthProbeBindAddress: cli.ProbeAddr,
+		LeaderElection:         cli.EnableLeaderElection,
 		LeaderElectionID:       "nats-k8s-based-resolver-controller",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
@@ -185,11 +166,11 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 			return err
 		}
 
-		controllers.SetNatsURL(cli.Manager.NatsURL)
-		controllers.SetNatsCreds(cli.Manager.NatsCreds)
+		controllers.SetNatsURL(cli.NatsURL)
+		controllers.SetNatsCreds(cli.NatsCreds)
 
 		// $SYS account (no rotation on first boot)
-		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.Manager.NatsURL, client, ns, opKP, false); err != nil {
+		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.NatsURL, client, ns, opKP, false); err != nil {
 			return fmt.Errorf("bootstrap sys account: %w", err)
 		}
 

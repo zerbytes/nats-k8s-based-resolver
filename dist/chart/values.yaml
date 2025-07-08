@@ -1,18 +1,26 @@
 # -- Your NATS server/cluster URL here (REQUIRED)
 natsURL: "nats://nats:4222"
 
-# -- [MANAGER]: Manager Deployment Configurations
+# -- Manager Deployment Configurations
 manager:
+  # -- Number of manager pod replicas
   replicas: 1
+
   container:
     image:
+      # -- Manager container image repository
       repository: ghcr.io/zerbytes/nats-k8s-based-resolver
+      # -- Manager container image tag
       tag: main
+
+    # -- Command-line arguments for manager container
     args:
       - "--leader-elect"
       - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
       - "--nats-url={{ .Values.natsURL }}"
+
+    # -- Resource limits and requests for manager container
     resources:
       limits:
         cpu: 500m
@@ -20,49 +28,72 @@ manager:
       requests:
         cpu: 10m
         memory: 64Mi
+
     livenessProbe:
+      # -- Liveness probe configuration for manager container
       initialDelaySeconds: 15
       periodSeconds: 20
       httpGet:
         path: /healthz
         port: 8081
     readinessProbe:
+      # -- Readiness probe configuration for manager container
       initialDelaySeconds: 5
       periodSeconds: 10
       httpGet:
         path: /readyz
         port: 8081
+    # -- Security context for manager container
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop:
           - "ALL"
+    # -- Additional volume mounts for manager container
     additionalVolumeMounts:
-      - name: sys-resolver-creds
-        mountPath: /creds/sys-creds
-        readOnly: true
+      - name: tmp-dir
+        mountPath: /tmp
+
+  # -- Pod-level security context for manager
   securityContext:
+    runAsUser: 65532
+    runAsGroup: 65532
+    fsGroup: 65532
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
-  terminationGracePeriodSeconds: 10
-  serviceAccountName: nats-k8s-based-resolver-controller-manager
-  additionalVolumes:
-    - name: sys-resolver-creds
-      secret:
-        secretName: nats-sys-resolver-creds
 
-# -- [RESOLVER]: Resolver Deployment Configurations
+  # -- Termination grace period for manager pods
+  terminationGracePeriodSeconds: 10
+
+  # -- Service account name for manager pods
+  serviceAccountName: nats-k8s-based-resolver-controller-manager
+
+  # -- Additional volumes for manager pods
+  additionalVolumes:
+    - name: tmp-dir
+      emptyDir:
+        sizeLimit: 10Mi
+        medium: Memory
+
+# -- Resolver Deployment Configurations
 resolver:
+  # -- Number of resolver pod replicas
   replicas: 1
   container:
     image:
+      # -- Resolver container image repository
       repository: ghcr.io/zerbytes/nats-k8s-based-resolver
+      # -- Resolver container image tag
       tag: main
+
+    # -- Command-line arguments for resolver container
     args:
       - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
       - "--nats-url={{ .Values.natsURL }}"
+
+    # -- Resource limits and requests for resolver container
     resources:
       limits:
         cpu: 500m
@@ -70,37 +101,59 @@ resolver:
       requests:
         cpu: 10m
         memory: 64Mi
+
     livenessProbe:
+      # -- Liveness probe configuration for resolver container
       initialDelaySeconds: 15
       periodSeconds: 20
       httpGet:
         path: /healthz
         port: 8081
     readinessProbe:
+      # -- Readiness probe configuration for resolver container
       initialDelaySeconds: 5
       periodSeconds: 10
       httpGet:
         path: /readyz
         port: 8081
+
+    # -- Security context for resolver container
     securityContext:
       allowPrivilegeEscalation: false
+      runAsUser: 65532
+      runAsGroup: 65532
+      runAsNonRoot: true
+      fsGroup: 65532
       capabilities:
         drop:
           - "ALL"
+
+    # -- Additional volume mounts for resolver container
     additionalVolumeMounts:
-      - name: sys-resolver-creds
-        mountPath: /creds/sys-creds
-        readOnly: true
+      - name: tmp-dir
+        mountPath: /tmp
+
+  # -- Pod-level security context for resolver
   securityContext:
+    runAsUser: 65532
+    runAsGroup: 65532
+    fsGroup: 65532
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
+
+  # -- Termination grace period for resolver pods
   terminationGracePeriodSeconds: 10
+
+  # -- Service account name for resolver pods
   serviceAccountName: nats-k8s-based-resolver-controller-manager
+
+  # -- Additional volumes for resolver pods
   additionalVolumes:
-    - name: sys-resolver-creds
-      secret:
-        secretName: nats-sys-resolver-creds
+    - name: tmp-dir
+      emptyDir:
+        sizeLimit: 10Mi
+        medium: Memory
 
 # -- To enable RBAC (Permissions) configurations
 rbac:

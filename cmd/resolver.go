@@ -53,10 +53,7 @@ var (
 
 var jwtCache = xsync.NewMap[string, cacheEntry]()
 
-type ResolverCmd struct {
-	NatsURL   string `env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
-	NatsCreds string `env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
-}
+type ResolverCmd struct{}
 
 func (c *ResolverCmd) Run(cli *MainCommand) error {
 	prometheus.MustRegister(lookupCounter, cacheHit, cacheMiss, pushCounter)
@@ -82,7 +79,7 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		ns = "default"
 	}
 
-	nc, err := connectNATS(cli.Resolver.NatsURL, cli.Resolver.NatsCreds, setupLog)
+	nc, err := connectNATS(cli.NatsURL, cli.NatsCreds, setupLog)
 	if err != nil {
 		return err
 	}
