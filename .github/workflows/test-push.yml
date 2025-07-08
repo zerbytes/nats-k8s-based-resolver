@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   test:
-    name: Run on Ubuntu
+    name: Run Go Tests
     runs-on: ubuntu-latest
     steps:
       - name: Clone the code
