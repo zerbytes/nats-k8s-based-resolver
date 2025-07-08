@@ -1,0 +1,4 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Make sure to follow the steps to configure your NATS server/cluster to use the nats-operator:
+https://github.com/zerbytes/nats-k8s-based-resolver/blob/main/README.md#configure-nats-to-use-the-generated-secrets

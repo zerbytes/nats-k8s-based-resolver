@@ -122,10 +122,10 @@ resolver: {
     # it's state with one random nats based account resolver in the cluster and if needed,
     # exchange jwt and converge on the same set of jwt.
     interval: "2m"
-    # (optional) limit on the number of jwt stored, will reject new jwt once limit is hit.
-    limit: 1000
     # Timeout for the resolver to wait for a response from the NATS server.
     timeout: "3s"
+    # (optional) limit on the number of jwt stored, will reject new jwt once limit is hit.
+    limit: 1000
 }
 ```
 
@@ -149,51 +149,73 @@ config:
     # Tell the server to use FULL resolver mode
     resolver:
       type: full
-      dir: /data/jwt
-      interval: 2m
-      allow_delete: false
-      #hard_delete: true # Recommend to set this to true if `allow_delete` is true
-      limit: 10000 # optional
+    # Directory in which account jwt will be stored (in Kubernetes this can be a volume mount or emptyDir)
+    dir: '/cache/jwt'
+    # In order to support jwt deletion, set to true.
+    # If you set it to true, it is recommend to set `hard_delete: true` as well.
+    allow_delete: false
+    #hard_delete: true
+    # Interval at which a nats-server with a nats based account resolver will compare
+    # it's state with one random nats based account resolver in the cluster and if needed,
+    # exchange jwt and converge on the same set of jwt.
+    interval: "2m"
+    # Timeout for the resolver to wait for a response from the NATS server.
+    timeout: "3s"
+    # (optional) limit on the number of jwt stored, will reject new jwt once limit is hit.
+    limit: 1000
 
 # Extra volumes, mounts, and env so the server sees the Secrets
 container:
   env:
+    # $SYS-account JWT and public key for config as environment variables
     SYS_ACCOUNT_PK:
       valueFrom:
         secretKeyRef:
           name: nats-sys-account-jwt
           key:  pub          # (added below in the controller)
+    SYS_ACCOUNT_JWT:
+      valueFrom:
+        secretKeyRef:
+          name: nats-sys-account-jwt
+          key:  jwt          # (added below in the controller)
   
   patch:
+    # Mount the operator JWT secret
     - op: add
       path: /volumeMounts/-
       value:
         name: operator-jwt
         mountPath: /etc/nkeys/operator
         readOnly: true
-
+    # JWT cache volume
     - op: add
       path: /volumeMounts/-
       value:
-        name: sys-account-jwt
-        mountPath: /etc/nkeys/accounts
+        name: jwt-cache
+        mountPath: /cache/jwt
         readOnly: true
 
 podTemplate:
   patch:
+    # Operator + $SYS-account JWTs
     - op: add
       path: /spec/volumes/-
       value:
         name: operator-jwt
         secret:
           secretName: nats-operator-jwt
-
     - op: add
       path: /spec/volumes/-
       value:
         name: sys-account-jwt
         secret:
           secretName: nats-sys-account-jwt
+    # JWT cache volume
+    - op: add
+      path: /spec/volumes/-
+      value:
+        name: jwt-cache
+        emptyDir: {}
 ```
 
 (Currently these instructions are not fully tested and might be incomplete, please open an issue if you encounter problems.)
