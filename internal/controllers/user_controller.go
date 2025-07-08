@@ -43,6 +43,8 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	log.Info("reconciling NatsUser", "name", user.Name, "namespace", user.Namespace, "acct_ref", user.Spec.AccountRef.Name, "acc_ref_namespace", user.Spec.AccountRef.Namespace)
+
 	desired := userDesiredFromSpec(&user)
 
 	// 2. Fetch parent account

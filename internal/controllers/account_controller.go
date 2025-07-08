@@ -42,6 +42,8 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
+	log.Info("reconciling NatsAccount", "name", acct.Name, "namespace", acct.Namespace)
+
 	desired := accDesiredFromSpec(&acct)
 
 	// 2. Determine if we need new creds or can reuse existing

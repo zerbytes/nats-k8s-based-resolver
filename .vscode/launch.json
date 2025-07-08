@@ -11,7 +11,6 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/",
             "env": {
-                "NATS_CREDS": "${workspaceFolder}/nats-server-v2.11.6-linux-amd64/sys.creds",
                 "NATS_URL": "nats://localhost:4223",
             }
         },
@@ -25,7 +24,6 @@
                 "resolver"
             ],
             "env": {
-                "NATS_CREDS": "${workspaceFolder}/nats-server-v2.11.6-linux-amd64/sys.creds",
                 "NATS_URL": "nats://localhost:4223",
             }
         }

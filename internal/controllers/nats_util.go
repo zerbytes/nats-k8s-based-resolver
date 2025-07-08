@@ -40,6 +40,14 @@ var (
 	connErr error
 )
 
+func SetNatsURL(url string) {
+	natsURL = url
+}
+
+func SetNatsCreds(creds string) {
+	natsCreds = creds
+}
+
 // getNATSConn returns a shared connection using env vars:
 //
 //	NATS_URL   – e.g. nats://nats:4222

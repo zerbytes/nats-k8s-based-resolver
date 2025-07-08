@@ -40,10 +40,15 @@ The following table lists the configurable parameters of the nats-k8s-based-reso
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `certmanager.enable` |  | `false` |
+| `controllerManager.additionalVolumes[0].name` |  | `"sys-resolver-creds"` |
+| `controllerManager.additionalVolumes[0].secret.secretName` |  | `"nats-sys-resolver-creds"` |
+| `controllerManager.container.additionalVolumeMounts[0].mountPath` |  | `"/creds/sys-creds"` |
+| `controllerManager.container.additionalVolumeMounts[0].name` |  | `"sys-resolver-creds"` |
+| `controllerManager.container.additionalVolumeMounts[0].readOnly` |  | `true` |
 | `controllerManager.container.args[0]` |  | `"--leader-elect"` |
 | `controllerManager.container.args[1]` |  | `"--metrics-bind-address=:8443"` |
 | `controllerManager.container.args[2]` |  | `"--health-probe-bind-address=:8081"` |
-| `controllerManager.container.args[3]` |  | `"--nats-url=nats://nats:4222"` |
+| `controllerManager.container.args[3]` |  | `"--nats-url={{ .Values.natsURL }}"` |
 | `controllerManager.container.image.repository` |  | `"ghcr.io/zerbytes/nats-k8s-based-resolver"` |
 | `controllerManager.container.image.tag` |  | `"main"` |
 | `controllerManager.container.livenessProbe.httpGet.path` |  | `"/healthz"` |
@@ -68,9 +73,39 @@ The following table lists the configurable parameters of the nats-k8s-based-reso
 | `crd.enable` |  | `true` |
 | `crd.keep` |  | `true` |
 | `metrics.enable` |  | `true` |
+| `natsURL` |  | `"nats://nats:4222"` |
 | `networkPolicy.enable` |  | `false` |
 | `prometheus.enable` |  | `false` |
 | `rbac.enable` |  | `true` |
+| `resolver.additionalVolumes[0].name` |  | `"sys-resolver-creds"` |
+| `resolver.additionalVolumes[0].secret.secretName` |  | `"nats-sys-resolver-creds"` |
+| `resolver.container.additionalVolumeMounts[0].mountPath` |  | `"/creds/sys-creds"` |
+| `resolver.container.additionalVolumeMounts[0].name` |  | `"sys-resolver-creds"` |
+| `resolver.container.additionalVolumeMounts[0].readOnly` |  | `true` |
+| `resolver.container.args[0]` |  | `"--metrics-bind-address=:8443"` |
+| `resolver.container.args[1]` |  | `"--health-probe-bind-address=:8081"` |
+| `resolver.container.args[2]` |  | `"--nats-url={{ .Values.natsURL }}"` |
+| `resolver.container.image.repository` |  | `"ghcr.io/zerbytes/nats-k8s-based-resolver"` |
+| `resolver.container.image.tag` |  | `"main"` |
+| `resolver.container.livenessProbe.httpGet.path` |  | `"/healthz"` |
+| `resolver.container.livenessProbe.httpGet.port` |  | `8081` |
+| `resolver.container.livenessProbe.initialDelaySeconds` |  | `15` |
+| `resolver.container.livenessProbe.periodSeconds` |  | `20` |
+| `resolver.container.readinessProbe.httpGet.path` |  | `"/readyz"` |
+| `resolver.container.readinessProbe.httpGet.port` |  | `8081` |
+| `resolver.container.readinessProbe.initialDelaySeconds` |  | `5` |
+| `resolver.container.readinessProbe.periodSeconds` |  | `10` |
+| `resolver.container.resources.limits.cpu` |  | `"500m"` |
+| `resolver.container.resources.limits.memory` |  | `"128Mi"` |
+| `resolver.container.resources.requests.cpu` |  | `"10m"` |
+| `resolver.container.resources.requests.memory` |  | `"64Mi"` |
+| `resolver.container.securityContext.allowPrivilegeEscalation` |  | `false` |
+| `resolver.container.securityContext.capabilities.drop[0]` |  | `"ALL"` |
+| `resolver.replicas` |  | `1` |
+| `resolver.securityContext.runAsNonRoot` |  | `true` |
+| `resolver.securityContext.seccompProfile.type` |  | `"RuntimeDefault"` |
+| `resolver.serviceAccountName` |  | `"nats-k8s-based-resolver-controller-manager"` |
+| `resolver.terminationGracePeriodSeconds` |  | `10` |
 
 ## Uninstalling the Chart
 

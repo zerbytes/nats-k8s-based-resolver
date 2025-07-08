@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats-k8s-based-resolver-resolver
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: resolver
+spec:
+  replicas:  {{ .Values.resolver.replicas }}
+  selector:
+    matchLabels:
+      {{- include "chart.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: resolver
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: resolver
+      labels:
+        {{- include "chart.labels" . | nindent 8 }}
+        app.kubernetes.io/component: resolver
+        {{- if and .Values.resolver.pod .Values.resolver.pod.labels }}
+        {{- range $key, $value := .Values.resolver.pod.labels }}
+        {{ $key }}: {{ $value }}
+        {{- end }}
+        {{- end }}
+    spec:
+      containers:
+        - name: resolver
+          args:
+            {{- range .Values.resolver.container.args }}
+            - {{ tpl . $ }}
+            {{- end }}
+          image: {{ .Values.resolver.container.image.repository }}:{{ .Values.resolver.container.image.tag }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          {{- if .Values.resolver.container.env }}
+            {{- range $key, $value := .Values.resolver.container.env }}
+            - name: {{ $key }}
+              value: {{ $value }}
+            {{- end }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.resolver.container.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.resolver.container.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resolver.container.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.resolver.container.securityContext | nindent 12 }}
+          {{- if and .Values.certmanager.enable (or .Values.webhook.enable .Values.metrics.enable) }}
+          volumeMounts:
+            {{- if and .Values.metrics.enable .Values.certmanager.enable }}
+            - name: metrics-certs
+              mountPath: /tmp/k8s-metrics-server/metrics-certs
+              readOnly: true
+            {{- end }}
+            {{- if .Values.resolver.container.additionalVolumeMounts }}
+            {{- toYaml .Values.resolver.container.additionalVolumeMounts | nindent 12 }}
+            {{- end }}
+          {{- end }}
+      securityContext:
+        {{- toYaml .Values.resolver.securityContext | nindent 8 }}
+      serviceAccountName: {{ .Values.resolver.serviceAccountName }}
+      terminationGracePeriodSeconds: {{ .Values.resolver.terminationGracePeriodSeconds }}
+      {{- if or (and .Values.certmanager.enable (or .Values.webhook.enable .Values.metrics.enable)) .Values.resolver.additionalVolumes }}
+      volumes:
+        {{- if and .Values.metrics.enable .Values.certmanager.enable }}
+        - name: metrics-certs
+          secret:
+            secretName: metrics-server-cert
+        {{- end }}
+        {{- if .Values.resolver.additionalVolumes }}
+        {{- toYaml .Values.resolver.additionalVolumeMounts | nindent 8 }}
+        {{- end }}
+      {{- end }}

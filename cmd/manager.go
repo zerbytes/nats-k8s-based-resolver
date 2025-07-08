@@ -28,7 +28,7 @@ type MainCommand struct {
 
 type ManagerCmd struct {
 	NatsURL   string `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`
-	NatsCreds string `env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\")"`
+	NatsCreds string `env:"NATS_CREDS" help:"Path to NATS $SYS user credentials file (e.g., secret named \"nats-sys-resolver-creds\"), will fallback to loading the secret from Kubernetes directly and storing in temporary file."`
 
 	MetricsAddr          string `name:"metrics-bind-address" default:"0" help:"The address the metrics endpoint binds to. Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service."`
 	ProbeAddr            string `name:"health-probe-bind-address" default:":8081" help:"The address the probe endpoint binds to."`
@@ -185,12 +185,13 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 			return err
 		}
 
+		controllers.SetNatsURL(cli.Manager.NatsURL)
+		controllers.SetNatsCreds(cli.Manager.NatsCreds)
+
 		// $SYS account (no rotation on first boot)
-		_, _, _, natsCreds, err := controllers.EnsureSysAccount(ctx, cli.Manager.NatsURL, cli.Manager.NatsCreds, client, ns, opKP, false)
-		if err != nil {
+		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.Manager.NatsURL, client, ns, opKP, false); err != nil {
 			return fmt.Errorf("bootstrap sys account: %w", err)
 		}
-		cli.Manager.NatsCreds = natsCreds
 
 		return nil
 	})); err != nil {

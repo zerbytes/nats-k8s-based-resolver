@@ -35,5 +35,5 @@ spec:
         {{- end }}
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app.kubernetes.io/component: controller-manager
 {{- end }}
