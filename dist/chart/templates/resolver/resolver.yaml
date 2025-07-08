@@ -74,6 +74,6 @@ spec:
             secretName: metrics-server-cert
         {{- end }}
         {{- if .Values.resolver.additionalVolumes }}
-        {{- toYaml .Values.resolver.additionalVolumeMounts | nindent 8 }}
+        {{- toYaml .Values.resolver.additionalVolumes | nindent 8 }}
         {{- end }}
       {{- end }}

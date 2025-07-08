@@ -51,7 +51,7 @@ spec:
             {{- toYaml .Values.manager.container.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.manager.container.securityContext | nindent 12 }}
-          {{- if or (and .Values.certmanager.enable (or .Values.webhook.enable .Values.metrics.enable)) .Values.manager.additionalVolumes }}
+          {{- if or (and .Values.certmanager.enable (or .Values.webhook.enable .Values.metrics.enable)) .Values.manager.container.additionalVolumes }}
           volumeMounts:
             {{- if and .Values.metrics.enable .Values.certmanager.enable }}
             - name: metrics-certs
@@ -74,6 +74,6 @@ spec:
             secretName: metrics-server-cert
         {{- end }}
         {{- if .Values.manager.additionalVolumes }}
-        {{- toYaml .Values.manager.additionalVolumeMounts | nindent 8 }}
+        {{- toYaml .Values.manager.additionalVolumes | nindent 8 }}
         {{- end }}
       {{- end }}
