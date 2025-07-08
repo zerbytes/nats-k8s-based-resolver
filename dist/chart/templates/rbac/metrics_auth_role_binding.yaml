@@ -11,6 +11,6 @@ roleRef:
   name: nats-k8s-based-resolver-metrics-auth-role
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.controllerManager.serviceAccountName }}
+  name: {{ .Values.manager.serviceAccountName }}
   namespace: {{ .Release.Namespace }}
 {{- end -}}

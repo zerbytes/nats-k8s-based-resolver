@@ -31,7 +31,7 @@ For example settings, see the next section or [values.yaml](/dist/chart/values.y
 
 The following values must be changed before installing the chart:
 
-- `controllerManager.container.args`: Make sure to update the `--nats-url` flag to point to your NATS server/cluster that you want to manage with nats-k8s-based-resolver.
+- `manager.container.args`: Make sure to update the `--nats-url` flag to point to your NATS server/cluster that you want to manage with nats-k8s-based-resolver.
 
 ## Configuration
 
@@ -39,73 +39,15 @@ The following table lists the configurable parameters of the nats-k8s-based-reso
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `certmanager.enable` |  | `false` |
-| `controllerManager.additionalVolumes[0].name` |  | `"sys-resolver-creds"` |
-| `controllerManager.additionalVolumes[0].secret.secretName` |  | `"nats-sys-resolver-creds"` |
-| `controllerManager.container.additionalVolumeMounts[0].mountPath` |  | `"/creds/sys-creds"` |
-| `controllerManager.container.additionalVolumeMounts[0].name` |  | `"sys-resolver-creds"` |
-| `controllerManager.container.additionalVolumeMounts[0].readOnly` |  | `true` |
-| `controllerManager.container.args[0]` |  | `"--leader-elect"` |
-| `controllerManager.container.args[1]` |  | `"--metrics-bind-address=:8443"` |
-| `controllerManager.container.args[2]` |  | `"--health-probe-bind-address=:8081"` |
-| `controllerManager.container.args[3]` |  | `"--nats-url={{ .Values.natsURL }}"` |
-| `controllerManager.container.image.repository` |  | `"ghcr.io/zerbytes/nats-k8s-based-resolver"` |
-| `controllerManager.container.image.tag` |  | `"main"` |
-| `controllerManager.container.livenessProbe.httpGet.path` |  | `"/healthz"` |
-| `controllerManager.container.livenessProbe.httpGet.port` |  | `8081` |
-| `controllerManager.container.livenessProbe.initialDelaySeconds` |  | `15` |
-| `controllerManager.container.livenessProbe.periodSeconds` |  | `20` |
-| `controllerManager.container.readinessProbe.httpGet.path` |  | `"/readyz"` |
-| `controllerManager.container.readinessProbe.httpGet.port` |  | `8081` |
-| `controllerManager.container.readinessProbe.initialDelaySeconds` |  | `5` |
-| `controllerManager.container.readinessProbe.periodSeconds` |  | `10` |
-| `controllerManager.container.resources.limits.cpu` |  | `"500m"` |
-| `controllerManager.container.resources.limits.memory` |  | `"128Mi"` |
-| `controllerManager.container.resources.requests.cpu` |  | `"10m"` |
-| `controllerManager.container.resources.requests.memory` |  | `"64Mi"` |
-| `controllerManager.container.securityContext.allowPrivilegeEscalation` |  | `false` |
-| `controllerManager.container.securityContext.capabilities.drop[0]` |  | `"ALL"` |
-| `controllerManager.replicas` |  | `1` |
-| `controllerManager.securityContext.runAsNonRoot` |  | `true` |
-| `controllerManager.securityContext.seccompProfile.type` |  | `"RuntimeDefault"` |
-| `controllerManager.serviceAccountName` |  | `"nats-k8s-based-resolver-controller-manager"` |
-| `controllerManager.terminationGracePeriodSeconds` |  | `10` |
-| `crd.enable` |  | `true` |
-| `crd.keep` |  | `true` |
-| `metrics.enable` |  | `true` |
-| `natsURL` |  | `"nats://nats:4222"` |
-| `networkPolicy.enable` |  | `false` |
-| `prometheus.enable` |  | `false` |
-| `rbac.enable` |  | `true` |
-| `resolver.additionalVolumes[0].name` |  | `"sys-resolver-creds"` |
-| `resolver.additionalVolumes[0].secret.secretName` |  | `"nats-sys-resolver-creds"` |
-| `resolver.container.additionalVolumeMounts[0].mountPath` |  | `"/creds/sys-creds"` |
-| `resolver.container.additionalVolumeMounts[0].name` |  | `"sys-resolver-creds"` |
-| `resolver.container.additionalVolumeMounts[0].readOnly` |  | `true` |
-| `resolver.container.args[0]` |  | `"--metrics-bind-address=:8443"` |
-| `resolver.container.args[1]` |  | `"--health-probe-bind-address=:8081"` |
-| `resolver.container.args[2]` |  | `"--nats-url={{ .Values.natsURL }}"` |
-| `resolver.container.image.repository` |  | `"ghcr.io/zerbytes/nats-k8s-based-resolver"` |
-| `resolver.container.image.tag` |  | `"main"` |
-| `resolver.container.livenessProbe.httpGet.path` |  | `"/healthz"` |
-| `resolver.container.livenessProbe.httpGet.port` |  | `8081` |
-| `resolver.container.livenessProbe.initialDelaySeconds` |  | `15` |
-| `resolver.container.livenessProbe.periodSeconds` |  | `20` |
-| `resolver.container.readinessProbe.httpGet.path` |  | `"/readyz"` |
-| `resolver.container.readinessProbe.httpGet.port` |  | `8081` |
-| `resolver.container.readinessProbe.initialDelaySeconds` |  | `5` |
-| `resolver.container.readinessProbe.periodSeconds` |  | `10` |
-| `resolver.container.resources.limits.cpu` |  | `"500m"` |
-| `resolver.container.resources.limits.memory` |  | `"128Mi"` |
-| `resolver.container.resources.requests.cpu` |  | `"10m"` |
-| `resolver.container.resources.requests.memory` |  | `"64Mi"` |
-| `resolver.container.securityContext.allowPrivilegeEscalation` |  | `false` |
-| `resolver.container.securityContext.capabilities.drop[0]` |  | `"ALL"` |
-| `resolver.replicas` |  | `1` |
-| `resolver.securityContext.runAsNonRoot` |  | `true` |
-| `resolver.securityContext.seccompProfile.type` |  | `"RuntimeDefault"` |
-| `resolver.serviceAccountName` |  | `"nats-k8s-based-resolver-controller-manager"` |
-| `resolver.terminationGracePeriodSeconds` |  | `10` |
+| `certmanager` | To enable cert-manager injection to webhooks set true | `{"enable":false}` |
+| `crd` | To install the CRDs via Helm | `{"enable":true,"keep":true}` |
+| `manager` | [MANAGER]: Manager Deployment Configurations | `{"additionalVolumes":[{"name":"sys-resolver-creds","secret":{"secretName":"nats-sys-resolver-creds"}}],"container":{"additionalVolumeMounts":[{"mountPath":"/creds/sys-creds","name":"sys-resolver-creds","readOnly":true}],"args":["--leader-elect","--metrics-bind-address=:8443","--health-probe-bind-address=:8081","--nats-url={{ .Values.natsURL }}"],"image":{"repository":"ghcr.io/zerbytes/nats-k8s-based-resolver","tag":"main"},"livenessProbe":{"httpGet":{"path":"/healthz","port":8081},"initialDelaySeconds":15,"periodSeconds":20},"readinessProbe":{"httpGet":{"path":"/readyz","port":8081},"initialDelaySeconds":5,"periodSeconds":10},"resources":{"limits":{"cpu":"500m","memory":"128Mi"},"requests":{"cpu":"10m","memory":"64Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}},"replicas":1,"securityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"serviceAccountName":"nats-k8s-based-resolver-controller-manager","terminationGracePeriodSeconds":10}` |
+| `metrics` | Set to true to generate manifests for exporting metrics. To disable metrics export set false, and ensure that the ControllerManager argument "--metrics-bind-address=:8443" is removed. | `{"enable":true}` |
+| `natsURL` | Your NATS server/cluster URL here (REQUIRED) | `"nats://nats:4222"` |
+| `networkPolicy` | To enable NetworkPolicies set true (needs additional policies to allow traffic to the NATS server/cluster) | `{"enable":false}` |
+| `prometheus` | To enable a ServiceMonitor to export metrics to Prometheus set true | `{"enable":false}` |
+| `rbac` | To enable RBAC (Permissions) configurations | `{"enable":true}` |
+| `resolver` | [RESOLVER]: Resolver Deployment Configurations | `{"additionalVolumes":[{"name":"sys-resolver-creds","secret":{"secretName":"nats-sys-resolver-creds"}}],"container":{"additionalVolumeMounts":[{"mountPath":"/creds/sys-creds","name":"sys-resolver-creds","readOnly":true}],"args":["--metrics-bind-address=:8443","--health-probe-bind-address=:8081","--nats-url={{ .Values.natsURL }}"],"image":{"repository":"ghcr.io/zerbytes/nats-k8s-based-resolver","tag":"main"},"livenessProbe":{"httpGet":{"path":"/healthz","port":8081},"initialDelaySeconds":15,"periodSeconds":20},"readinessProbe":{"httpGet":{"path":"/readyz","port":8081},"initialDelaySeconds":5,"periodSeconds":10},"resources":{"limits":{"cpu":"500m","memory":"128Mi"},"requests":{"cpu":"10m","memory":"64Mi"}},"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}},"replicas":1,"securityContext":{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"serviceAccountName":"nats-k8s-based-resolver-controller-manager","terminationGracePeriodSeconds":10}` |
 
 ## Uninstalling the Chart
 

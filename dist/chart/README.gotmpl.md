@@ -28,7 +28,7 @@ For example settings, see the next section or [values.yaml](/dist/chart/values.y
 
 The following values must be changed before installing the chart:
 
-- `controllerManager.container.args`: Make sure to update the `--nats-url` flag to point to your NATS server/cluster that you want to manage with nats-k8s-based-resolver.
+- `manager.container.args`: Make sure to update the `--nats-url` flag to point to your NATS server/cluster that you want to manage with nats-k8s-based-resolver.
 
 ## Configuration
 

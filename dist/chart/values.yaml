@@ -1,8 +1,8 @@
-# Your NATS server/cluster URL here
+# -- Your NATS server/cluster URL here (REQUIRED)
 natsURL: "nats://nats:4222"
 
-# [MANAGER]: Manager Deployment Configurations
-controllerManager:
+# -- [MANAGER]: Manager Deployment Configurations
+manager:
   replicas: 1
   container:
     image:
@@ -52,6 +52,7 @@ controllerManager:
       secret:
         secretName: nats-sys-resolver-creds
 
+# -- [RESOLVER]: Resolver Deployment Configurations
 resolver:
   replicas: 1
   container:
@@ -101,11 +102,11 @@ resolver:
       secret:
         secretName: nats-sys-resolver-creds
 
-# [RBAC]: To enable RBAC (Permissions) configurations
+# -- To enable RBAC (Permissions) configurations
 rbac:
   enable: true
 
-# [CRDs]: To enable the CRDs
+# -- To install the CRDs via Helm
 crd:
   # This option determines whether the CRDs are included
   # in the installation process.
@@ -118,20 +119,20 @@ crd:
   # (Certificates, Issuers, ...) due to garbage collection.
   keep: true
 
-# [METRICS]: Set to true to generate manifests for exporting metrics.
+# -- Set to true to generate manifests for exporting metrics.
 # To disable metrics export set false, and ensure that the
 # ControllerManager argument "--metrics-bind-address=:8443" is removed.
 metrics:
   enable: true
 
-# [PROMETHEUS]: To enable a ServiceMonitor to export metrics to Prometheus set true
+# -- To enable a ServiceMonitor to export metrics to Prometheus set true
 prometheus:
   enable: false
 
-# [CERT-MANAGER]: To enable cert-manager injection to webhooks set true
+# -- To enable cert-manager injection to webhooks set true
 certmanager:
   enable: false
 
-# [NETWORK POLICIES]: To enable NetworkPolicies set true
+# -- To enable NetworkPolicies set true (needs additional policies to allow traffic to the NATS server/cluster)
 networkPolicy:
   enable: false

@@ -7,7 +7,7 @@ metadata:
     {{- include "chart.labels" . | nindent 4 }}
     app.kubernetes.io/component: controller-manager
 spec:
-  replicas:  {{ .Values.controllerManager.replicas }}
+  replicas:  {{ .Values.manager.replicas }}
   selector:
     matchLabels:
       {{- include "chart.selectorLabels" . | nindent 6 }}
@@ -19,8 +19,8 @@ spec:
       labels:
         {{- include "chart.labels" . | nindent 8 }}
         app.kubernetes.io/component: controller-manager
-        {{- if and .Values.controllerManager.pod .Values.controllerManager.pod.labels }}
-        {{- range $key, $value := .Values.controllerManager.pod.labels }}
+        {{- if and .Values.manager.pod .Values.manager.pod.labels }}
+        {{- range $key, $value := .Values.manager.pod.labels }}
         {{ $key }}: {{ $value }}
         {{- end }}
         {{- end }}
@@ -28,29 +28,29 @@ spec:
       containers:
         - name: manager
           args:
-            {{- range .Values.controllerManager.container.args }}
+            {{- range .Values.manager.container.args }}
             - {{ . }}
             {{- end }}
-          image: {{ .Values.controllerManager.container.image.repository }}:{{ .Values.controllerManager.container.image.tag }}
+          image: {{ .Values.manager.container.image.repository }}:{{ .Values.manager.container.image.tag }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          {{- if .Values.controllerManager.container.env }}
-            {{- range $key, $value := .Values.controllerManager.container.env }}
+          {{- if .Values.manager.container.env }}
+            {{- range $key, $value := .Values.manager.container.env }}
             - name: {{ $key }}
               value: {{ $value }}
             {{- end }}
           {{- end }}
           livenessProbe:
-            {{- toYaml .Values.controllerManager.container.livenessProbe | nindent 12 }}
+            {{- toYaml .Values.manager.container.livenessProbe | nindent 12 }}
           readinessProbe:
-            {{- toYaml .Values.controllerManager.container.readinessProbe | nindent 12 }}
+            {{- toYaml .Values.manager.container.readinessProbe | nindent 12 }}
           resources:
-            {{- toYaml .Values.controllerManager.container.resources | nindent 12 }}
+            {{- toYaml .Values.manager.container.resources | nindent 12 }}
           securityContext:
-            {{- toYaml .Values.controllerManager.container.securityContext | nindent 12 }}
+            {{- toYaml .Values.manager.container.securityContext | nindent 12 }}
           {{- if or (and .Values.certmanager.enable (or .Values.webhook.enable .Values.metrics.enable)) .Values.manager.additionalVolumes }}
           volumeMounts:
             {{- if and .Values.metrics.enable .Values.certmanager.enable }}
@@ -63,9 +63,9 @@ spec:
             {{- end }}
           {{- end }}
       securityContext:
-        {{- toYaml .Values.controllerManager.securityContext | nindent 8 }}
-      serviceAccountName: {{ .Values.controllerManager.serviceAccountName }}
-      terminationGracePeriodSeconds: {{ .Values.controllerManager.terminationGracePeriodSeconds }}
+        {{- toYaml .Values.manager.securityContext | nindent 8 }}
+      serviceAccountName: {{ .Values.manager.serviceAccountName }}
+      terminationGracePeriodSeconds: {{ .Values.manager.terminationGracePeriodSeconds }}
       {{- if or (and .Values.certmanager.enable (or .Values.webhook.enable .Values.metrics.enable)) .Values.manager.additionalVolumes }}
       volumes:
         {{- if and .Values.metrics.enable .Values.certmanager.enable }}
