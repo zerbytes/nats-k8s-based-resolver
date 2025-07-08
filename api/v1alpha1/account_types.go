@@ -85,6 +85,9 @@ type NatsAccountStatus struct {
 
 	// SecretName referencing the Kubernetes Secret with the JWT.
 	SecretName string `json:"secretName,omitempty"`
+
+	// SigningKeyPublicKey is the public key of the signing key used to sign the JWT.
+	SigningKeyPublicKey string `json:"signingKeyPublicKey,omitempty"`
 }
 
 // +kubebuilder:object:root=true

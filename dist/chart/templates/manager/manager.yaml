@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nats-k8s-based-resolver-controller-manager
+  name: nats-k8s-based-resolver-manager
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-    app.kubernetes.io/component: controller-manager
+    app.kubernetes.io/component: manager
 spec:
   replicas:  {{ .Values.manager.replicas }}
   selector:
     matchLabels:
       {{- include "chart.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: controller-manager
+      app.kubernetes.io/component: manager
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
         {{- include "chart.labels" . | nindent 8 }}
-        app.kubernetes.io/component: controller-manager
+        app.kubernetes.io/component: manager
         {{- if and .Values.manager.pod .Values.manager.pod.labels }}
         {{- range $key, $value := .Values.manager.pod.labels }}
         {{ $key }}: {{ $value }}

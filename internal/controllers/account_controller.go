@@ -52,12 +52,20 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	first := errors.IsNotFound(r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: req.Namespace}, &sec))
 
 	var (
-		kp      nkeys.KeyPair
-		pubKey  string
-		seedStr string
-		jwtStr  string
-		changed bool
+		kp       nkeys.KeyPair
+		pubKey   string
+		seedStr  string
+		jwtStr   string
+		changed  bool
+		opPubKey string // Track operator public key
 	)
+
+	// Always get the current operator keypair and public key
+	opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, r.NS)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	opPubKey, _ = opKp.PublicKey()
 
 	if !first {
 		// Try to parse existing secret
@@ -82,6 +90,9 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Decide if we need to create/update the JWT
 	if first {
 		changed = true
+	} else if acct.Status.SigningKeyPublicKey != opPubKey {
+		// If the signing key changed, force regeneration
+		changed = true
 	} else {
 		claim, _ := natsjwt.Decode(jwtStr)
 		if ac, ok := claim.(*natsjwt.AccountClaims); ok {
@@ -94,13 +105,9 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if changed {
-		// build new JWT
-		opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, r.NS)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+		// Build new JWT
 		ac := natsjwt.NewAccountClaims(pubKey)
-		// copy limits
+		// Copy limits
 		ac.Limits.Conn = desired.limits.conns
 		ac.Limits.Subs = desired.limits.subs
 		ac.Limits.Data = desired.limits.data
@@ -160,10 +167,11 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// 4. Status update with error handling
-	if !acct.Status.Ready || acct.Status.AccountPublicKey != pubKey {
+	if !acct.Status.Ready || acct.Status.AccountPublicKey != pubKey || acct.Status.SigningKeyPublicKey != opPubKey {
 		acct.Status.Ready = true
 		acct.Status.AccountPublicKey = pubKey
 		acct.Status.SecretName = secretName
+		acct.Status.SigningKeyPublicKey = opPubKey
 		if err := r.Status().Update(ctx, &acct); err != nil {
 			return ctrl.Result{}, err
 		}

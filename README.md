@@ -1,9 +1,16 @@
+<center>
+  <img src=".github/readme/logo.png" alt="nats-k8s-based-resolver Logo" width="250"/>
+
+  <small>(see [Logo Attribution](#logo-attribution) below)</small>
+</center>
+
 # nats-k8s-based-resolver - NATS Account Resolver
 
 NATS based account resolver Kubernetes-native operator.
 
 This operator provides a Kubernetes-native way to manage NATS accounts and users, allowing you to create and manage NATS accounts and users using Kubernetes Custom Resource Definitions (CRDs).
 
+[![Container Images on GHCR.io](https://img.shields.io/badge/Container%20Images%20on-GHCR.io-blue)](https://github.com/zerbytes/nats-k8s-based-resolver/pkgs/container/nats-k8s-based-resolver)
 [![Go Report Card](https://goreportcard.com/badge/github.com/zerbytes/nats-k8s-based-resolver)](https://goreportcard.com/report/github.com/zerbytes/nats-k8s-based-resolver)
 [![License](https://img.shields.io/github/license/zerbytes/nats-k8s-based-resolver)](LICENSE)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/zerbytes/nats-k8s-based-resolver/test-push.yml?branch=main)](https://github.com/zerbytes/nats-k8s-based-resolver/actions)
@@ -210,3 +217,13 @@ make docker-push   # push to your repo
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+### Logo Attribution
+
+> 💬 *To me, a project becomes real the moment it gets a logo.*
+
+The project logo was generated using OpenAI's DALL·E via ChatGPT (GPT-4o). It is AI-generated and used under the terms of the [OpenAI Terms of Use](https://openai.com/policies/terms-of-use).
+
+No copyright or trademark is claimed on the logo. If you believe it infringes on any rights or presents a conflict, please [open an issue](https://github.com/zerbytes/nats-k8s-based-resolver/issues) or contact us via email.
+
+The logo is intended for illustrative purposes and is subject to the same license as this project unless otherwise stated.

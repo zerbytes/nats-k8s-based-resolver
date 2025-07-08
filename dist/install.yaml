@@ -2,9 +2,9 @@ apiVersion: v1
 kind: Namespace
 metadata:
   labels:
+    app.kubernetes.io/component: controller-manager
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: operator
-    app.kubernetes.io/component: controller-manager
   name: operator-system
 ---
 apiVersion: apiextensions.k8s.io/v1
@@ -155,6 +155,10 @@ spec:
               secretName:
                 description: SecretName referencing the Kubernetes Secret with the
                   JWT.
+                type: string
+              signingKeyPublicKey:
+                description: SigningKeyPublicKey is the public key of the signing
+                  key used to sign the JWT.
                 type: string
             type: object
         type: object
@@ -325,6 +329,10 @@ spec:
               secretName:
                 description: SecretName referencing the Kubernetes Secret with the
                   creds.
+                type: string
+              signingKeyPublicKey:
+                description: SigningKeyPublicKey is the public key of the signing
+                  key used to sign the JWT.
                 type: string
               userPublicKey:
                 description: UserPublicKey contains the public NKey of the user.
@@ -589,9 +597,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: controller-manager
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: operator
-    app.kubernetes.io/component: controller-manager
   name: operator-controller-manager-metrics-service
   namespace: operator-system
 spec:
@@ -601,31 +609,31 @@ spec:
     protocol: TCP
     targetPort: 8443
   selector:
-    app.kubernetes.io/name: operator
     app.kubernetes.io/component: controller-manager
+    app.kubernetes.io/name: operator
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    app.kubernetes.io/component: controller-manager
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: operator
-    app.kubernetes.io/component: controller-manager
   name: operator-controller-manager
   namespace: operator-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: operator
       app.kubernetes.io/component: controller-manager
+      app.kubernetes.io/name: operator
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        app.kubernetes.io/name: operator
         app.kubernetes.io/component: controller-manager
+        app.kubernetes.io/name: operator
     spec:
       containers:
       - args:

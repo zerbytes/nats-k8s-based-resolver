@@ -12,8 +12,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/component: controller-manager
-      app.kubernetes.io/name: operator
+      {{- include "chart.selectorLabels" . | nindent 4 }}
   policyTypes:
     - Ingress
   ingress:

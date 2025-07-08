@@ -67,6 +67,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+	accPubKey, _ := accKp.PublicKey() // Track account public key
 
 	// 4. Determine if we need new creds or can reuse existing
 	secretName := fmt.Sprintf("nats-user-%s-jwt", user.Name)
@@ -105,6 +106,9 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// Decide if we need to create/update the JWT
 	if first {
+		changed = true
+	} else if user.Status.SigningKeyPublicKey != accPubKey {
+		// If the signing key (account) changed, force regeneration
 		changed = true
 	} else {
 		claim, _ := natsjwt.Decode(jwtStr)
@@ -165,10 +169,11 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// 6. Update status
-	if !user.Status.Ready || user.Status.UserPublicKey != pubKey {
+	if !user.Status.Ready || user.Status.UserPublicKey != pubKey || user.Status.SigningKeyPublicKey != accPubKey {
 		user.Status.Ready = true
 		user.Status.UserPublicKey = pubKey
 		user.Status.SecretName = secretName
+		user.Status.SigningKeyPublicKey = accPubKey
 		if err := r.Status().Update(ctx, &user); err != nil {
 			return ctrl.Result{}, err
 		}

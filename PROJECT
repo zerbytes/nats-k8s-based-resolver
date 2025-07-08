@@ -5,8 +5,7 @@
 domain: zerbytes.net
 layout:
 - go.kubebuilder.io/v4
-plugins:
-  helm.kubebuilder.io/v1-alpha: {}
+plugins: {}
 projectName: nats-k8s-based-resolver
 repo: github.com/zerbytes/nats-k8s-based-resolver
 resources:
