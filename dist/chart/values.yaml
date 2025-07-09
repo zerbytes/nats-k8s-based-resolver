@@ -12,6 +12,8 @@ manager:
       repository: ghcr.io/zerbytes/nats-k8s-based-resolver
       # -- Manager container image tag
       tag: main
+    # -- Image pull policy for manager container
+    imagePullPolicy: IfNotPresent
 
     # -- Command-line arguments for manager container
     args:
@@ -86,6 +88,9 @@ resolver:
       repository: ghcr.io/zerbytes/nats-k8s-based-resolver
       # -- Resolver container image tag
       tag: main
+
+    # -- Image pull policy for resolver container
+    imagePullPolicy: IfNotPresent
 
     # -- Command-line arguments for resolver container
     args:

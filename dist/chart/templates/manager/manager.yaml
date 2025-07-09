@@ -32,6 +32,7 @@ spec:
             - {{ . }}
             {{- end }}
           image: {{ .Values.manager.container.image.repository }}:{{ .Values.manager.container.image.tag }}
+          imagePullPolicy: {{ .Values.manager.container.imagePullPolicy | default 'IfNotPresent' }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
