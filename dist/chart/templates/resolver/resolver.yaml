@@ -32,7 +32,7 @@ spec:
             - {{ tpl . $ }}
             {{- end }}
           image: {{ .Values.resolver.container.image.repository }}:{{ .Values.resolver.container.image.tag }}
-          imagePullPolicy: {{ .Values.resolver.container.imagePullPolicy | default 'IfNotPresent' }}
+          imagePullPolicy: {{ .Values.resolver.container.imagePullPolicy | default "IfNotPresent" }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
