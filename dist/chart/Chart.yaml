@@ -2,6 +2,6 @@ apiVersion: v2
 name: nats-k8s-based-resolver
 description: A Helm chart to deploy the nats-k8s-based-resolver manager and resolver.
 type: application
-version: 0.3.13
-appVersion: "v0.1.3"
+version: 0.3.14
+appVersion: "v0.2.0"
 icon: https://raw.githubusercontent.com/zerbytes/nats-k8s-based-resolver/main/.github/readme/logo.png
