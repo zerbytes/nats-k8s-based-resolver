@@ -33,7 +33,7 @@ jobs:
         run: |
           go mod tidy
           make docker-build IMG=operator:$(cat VERSION)
-          kind load docker-image operator:$(cat VERSION)$(cat VERSION)
+          kind load docker-image operator:$(cat VERSION)
 
       - name: Install Helm
         run: |
