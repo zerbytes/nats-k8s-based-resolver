@@ -27,8 +27,8 @@ import (
 // NatsUserReconciler reconciles a NatsUser object
 type NatsUserReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	NS     string
+	Scheme     *runtime.Scheme
+	OperatorNS string
 }
 
 func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -74,11 +73,6 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		return err
 	}
 
-	ns := os.Getenv("POD_NAMESPACE")
-	if ns == "" {
-		ns = "default"
-	}
-
 	nc, err := connectNATS(cli.NatsURL, cli.NatsCreds, setupLog)
 	if err != nil {
 		return err
@@ -91,7 +85,7 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		nc.Drain()
 	}()
 
-	if err := preloadJWTs(mgr, k8sClient, ns); err != nil {
+	if err := preloadJWTs(mgr, k8sClient, cli.PodNamespace); err != nil {
 		return err
 	}
 

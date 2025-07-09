@@ -145,12 +145,6 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		return err
 	}
 
-	// Use POD_NAMESPACE (set by the Helm chart) or fallback "default"
-	ns := os.Getenv("POD_NAMESPACE")
-	if ns == "" {
-		ns = "default"
-	}
-
 	// Bootstrap: Operator key & $SYS account Secret
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		// 1. Wait for informer cache
@@ -161,7 +155,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		client := mgr.GetClient()
 
 		// Operator key
-		opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, client, ns)
+		opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, client, cli.PodNamespace)
 		if err != nil {
 			return err
 		}
@@ -170,7 +164,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		controllers.SetNatsCreds(cli.NatsCreds)
 
 		// $SYS account (no rotation on first boot)
-		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.NatsURL, client, ns, opKP, false); err != nil {
+		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.NatsURL, client, cli.PodNamespace, opKP, false); err != nil {
 			return fmt.Errorf("bootstrap sys account: %w", err)
 		}
 
@@ -181,17 +175,17 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 	}
 
 	if err = (&controllers.NatsAccountReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		NS:     ns,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		OperatorNS: cli.PodNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NatsAccount")
 		return err
 	}
 	if err = (&controllers.NatsUserReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		NS:     ns,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		OperatorNS: cli.PodNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NatsUser")
 		return err

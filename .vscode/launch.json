@@ -12,6 +12,7 @@
             "program": "${workspaceFolder}/cmd/",
             "env": {
                 "NATS_URL": "nats://localhost:4223",
+                "POD_NAMESPACE": "default"
             }
         },
         {
@@ -25,6 +26,7 @@
             ],
             "env": {
                 "NATS_URL": "nats://localhost:4223",
+                "POD_NAMESPACE": "default"
             }
         }
     ]

@@ -21,14 +21,14 @@ const (
 
 // GetOrCreateOperatorKP ensures a Secret with operator seed & jwt exists and
 // returns a loaded nkeys.KeyPair plus JWT string.
-func GetOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nkeys.KeyPair, string, error) {
+func GetOrCreateOperatorKP(ctx context.Context, c client.Client, operatorNs string) (nkeys.KeyPair, string, error) {
 	secretName := os.Getenv("OPERATOR_SECRET_NAME")
 	if secretName == "" {
 		secretName = operatorSecretDefault
 	}
 
 	var sec corev1.Secret
-	err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: ns}, &sec)
+	err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: operatorNs}, &sec)
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, "", err
 	}
@@ -57,7 +57,7 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nke
 	// Build / create secret
 	newSec := &corev1.Secret{}
 	newSec.Name = secretName
-	newSec.Namespace = ns
+	newSec.Namespace = operatorNs
 	newSec.Type = corev1.SecretTypeOpaque
 	newSec.StringData = map[string]string{
 		"seed": string(seed),
@@ -85,9 +85,9 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, ns string) (nke
 // EnsureSysAccount returns (sysKP, sysJWT string, sysPub string).
 // If rotate==true it generates a *new* account keypair & JWT, replacing
 // whatever is stored in the Secret.
-func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, ns string, opKp nkeys.KeyPair, rotate bool) (nkeys.KeyPair, string, string, string, error) {
+func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operatorNs string, opKp nkeys.KeyPair, rotate bool) (nkeys.KeyPair, string, string, string, error) {
 	var sec corev1.Secret
-	err := c.Get(ctx, types.NamespacedName{Name: sysSecretName, Namespace: ns}, &sec)
+	err := c.Get(ctx, types.NamespacedName{Name: sysSecretName, Namespace: operatorNs}, &sec)
 
 	// (A) reuse existing if present & no rotation requested
 	if err == nil && !rotate {
@@ -98,7 +98,7 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, ns stri
 			sysKP, err := nkeys.FromSeed(seedB)
 			if err == nil {
 				sysSeed, _ := sysKP.Seed()
-				sysCreds, err := ensureSysResolverUserCreds(ctx, c, ns, sysSeed)
+				sysCreds, err := ensureSysResolverUserCreds(ctx, c, operatorNs, sysSeed)
 				if err != nil {
 					return nil, "", "", "", fmt.Errorf("ensure sys resolver user creds: %w", err)
 				}
@@ -150,7 +150,7 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, ns stri
 		// create Secret first time
 		newSec := &corev1.Secret{}
 		newSec.Name = sysSecretName
-		newSec.Namespace = ns
+		newSec.Namespace = operatorNs
 		newSec.Type = corev1.SecretTypeOpaque
 		newSec.Data = data
 		if err := c.Create(ctx, newSec); err != nil {
@@ -173,7 +173,7 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, ns stri
 	}
 
 	// Store sys resolver user creds in file
-	sysCreds, err := ensureSysResolverUserCreds(ctx, c, ns, sysSeed)
+	sysCreds, err := ensureSysResolverUserCreds(ctx, c, operatorNs, sysSeed)
 	if err != nil {
 		return nil, "", "", "", fmt.Errorf("ensure sys resolver user creds: %w", err)
 	}
@@ -188,8 +188,8 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, ns stri
 	return sysKP, sysJWT, sysPub, sysCreds, nil
 }
 
-func ensureSysResolverUserCreds(ctx context.Context, c client.Client, ns string, sysSeed []byte) (string, error) {
-	sysCreds, err := EnsureSysResolverUser(ctx, c, ns, sysSeed, false)
+func ensureSysResolverUserCreds(ctx context.Context, c client.Client, operatorNs string, sysSeed []byte) (string, error) {
+	sysCreds, err := EnsureSysResolverUser(ctx, c, operatorNs, sysSeed, false)
 	if err != nil {
 		return "", fmt.Errorf("bootstrap sys resolver user: %w", err)
 	}

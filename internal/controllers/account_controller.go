@@ -26,8 +26,8 @@ import (
 // NatsAccountReconciler reconciles a NatsAccount object
 type NatsAccountReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	NS     string
+	Scheme     *runtime.Scheme
+	OperatorNS string
 }
 
 //nolint:gocyclo
@@ -62,7 +62,7 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	)
 
 	// Always get the current operator keypair and public key
-	opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, r.NS)
+	opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, r.OperatorNS)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
