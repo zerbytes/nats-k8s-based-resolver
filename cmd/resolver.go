@@ -102,10 +102,10 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		// Setup NATS connection
 		nc, err = controllers.GetNATSConn()
 		if err != nil {
-			// return err
+			return err
 		}
 		if err := setupNATSSubscriptions(nc, k8sClient, setupLog); err != nil {
-			// return err
+			return err
 		}
 		setupLog.Info("NATS connection established")
 
