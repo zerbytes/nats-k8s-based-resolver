@@ -198,7 +198,7 @@ func ensureSysResolverUserCreds(ctx context.Context, c client.Client, operatorNs
 }
 
 func ensureSysResolverUserCredsFile(sysCreds string) (string, error) {
-	// If no nats creds file is specified, write it to a temporary file
+	// If no nats creds file is specified, write the secret to a temporary file
 	if natsCreds == "" {
 		// If no NATS_CREDS env var, fallback to the default system creds file path
 		f, err := os.CreateTemp("", "nats-sys-creds-*")
@@ -208,7 +208,7 @@ func ensureSysResolverUserCredsFile(sysCreds string) (string, error) {
 		if _, err := f.Write([]byte(sysCreds)); err != nil {
 			return "", fmt.Errorf("write sys creds to temp file: %w", err)
 		}
-		natsCreds = f.Name()
+		SetNatsCreds(f.Name())
 	}
 
 	return natsCreds, nil

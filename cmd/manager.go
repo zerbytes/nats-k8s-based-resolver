@@ -145,7 +145,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		return err
 	}
 
-	// Bootstrap: Operator key & $SYS account Secret
+	// Bootstrap: Operator key & $SYS account + user Secret
 	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		// 1. Wait for informer cache
 		if ok := mgr.GetCache().WaitForCacheSync(ctx); !ok {

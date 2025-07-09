@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/puzpuzpuz/xsync/v4"
 	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
+	"github.com/zerbytes/nats-k8s-based-resolver/internal/controllers"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -73,23 +75,47 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		return err
 	}
 
-	nc, err := connectNATS(cli.NatsURL, cli.NatsCreds, setupLog)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if nc == nil {
-			return
+	var nc *nats.Conn
+	// Bootstrap: Operator key & $SYS account + user Secret
+	if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		// 1. Wait for informer cache
+		if ok := mgr.GetCache().WaitForCacheSync(ctx); !ok {
+			return fmt.Errorf("cache never syncs")
 		}
-		//nolint:errcheck
-		nc.Drain()
-	}()
+
+		client := mgr.GetClient()
+
+		// Operator key
+		opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, client, cli.PodNamespace)
+		if err != nil {
+			return err
+		}
+
+		controllers.SetNatsURL(cli.NatsURL)
+		controllers.SetNatsCreds(cli.NatsCreds)
+
+		// $SYS account (no rotation on first boot)
+		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.NatsURL, client, cli.PodNamespace, opKP, false); err != nil {
+			return fmt.Errorf("bootstrap sys account: %w", err)
+		}
+
+		// Setup NATS connection
+		nc, err = controllers.GetNATSConn()
+		if err != nil {
+			return err
+		}
+		if err := setupNATSSubscriptions(nc, k8sClient, setupLog); err != nil {
+			return err
+		}
+		setupLog.Info("NATS connection established")
+
+		return nil
+	})); err != nil {
+		setupLog.Error(err, "add bootstrap runnable")
+		os.Exit(1)
+	}
 
 	if err := preloadJWTs(mgr, k8sClient, cli.PodNamespace); err != nil {
-		return err
-	}
-
-	if err := setupNATSSubscriptions(nc, k8sClient, setupLog); err != nil {
 		return err
 	}
 
@@ -101,6 +127,11 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running resolver")
 		return err
+	}
+
+	if nc != nil {
+		//nolint:errcheck
+		nc.Drain() // wait for NATS to finish processing
 	}
 
 	return nil
@@ -145,20 +176,6 @@ func setupAccountInformer(mgr manager.Manager, k8sClient client.Client) error {
 		return err
 	}
 	return nil
-}
-
-// connectNATS connects to the NATS server
-func connectNATS(url, creds string, setupLog *zap.SugaredLogger) (*nats.Conn, error) {
-	if url == "" {
-		return nil, nil
-	}
-
-	nc, err := nats.Connect(url, nats.UserCredentials(creds))
-	if err != nil {
-		setupLog.Error(err, "nats connect")
-		return nil, err
-	}
-	return nc, nil
 }
 
 // preloadJWTs preloads operator and $SYS JWTs into the cache

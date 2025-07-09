@@ -48,11 +48,11 @@ func SetNatsCreds(creds string) {
 	natsCreds = creds
 }
 
-// getNATSConn returns a shared connection using env vars:
+// GetNATSConn returns a shared connection using env vars:
 //
 //	NATS_URL   – e.g. nats://nats:4222
 //	NATS_CREDS – path to resolver creds (user in $SYS)
-func getNATSConn() (*nats.Conn, error) {
+func GetNATSConn() (*nats.Conn, error) {
 	connOnce.Do(func() {
 		if natsURL == "" {
 			natsURL = "nats://nats:4222" // sensible default
@@ -70,7 +70,7 @@ func getNATSConn() (*nats.Conn, error) {
 // NATS servers will parse and cache based on the JWT type.
 // Waits up to 2 s for an ACK but ignores the body.
 func pushJWT(jwt string) error {
-	nc, err := getNATSConn()
+	nc, err := GetNATSConn()
 	if err != nil {
 		return err
 	}
