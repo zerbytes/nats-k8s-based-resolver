@@ -51,16 +51,16 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	var acct natsv1alpha1.NatsAccount
 	if err := r.Get(ctx, types.NamespacedName{Name: user.Spec.AccountRef.Name, Namespace: user.Spec.AccountRef.Namespace}, &acct); err != nil {
 		log.Error(err, "parent account not ready")
-		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 	if !acct.Status.Ready || acct.Status.SecretName == "" {
-		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
 	// 3. Load account seed
 	var acctSec corev1.Secret
 	if err := r.Get(ctx, types.NamespacedName{Name: acct.Status.SecretName, Namespace: acct.Namespace}, &acctSec); err != nil {
-		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 	accSeed := acctSec.Data["seed"]
 	accKp, err := nkeys.FromSeed(accSeed)
