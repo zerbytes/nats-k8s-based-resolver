@@ -3,9 +3,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	natsjwt "github.com/nats-io/jwt/v2"
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/puzpuzpuz/xsync/v4"
 	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
 	"github.com/zerbytes/nats-k8s-based-resolver/internal/controllers"
@@ -24,7 +22,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
@@ -57,14 +57,14 @@ var jwtCache = xsync.NewMap[string, cacheEntry]()
 type ResolverCmd struct{}
 
 func (c *ResolverCmd) Run(cli *MainCommand) error {
-	prometheus.MustRegister(lookupCounter, cacheHit, cacheMiss, pushCounter)
+	metrics.Registry.MustRegister(lookupCounter, cacheHit, cacheMiss, pushCounter)
 
 	setupLog, err := setupLogging()
 	if err != nil {
 		return err
 	}
 
-	mgr, k8sClient, err := initK8sManager()
+	mgr, k8sClient, err := initK8sManager(setupLog, cli)
 	if err != nil {
 		setupLog.Error(err, "manager")
 		return err
@@ -102,10 +102,10 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		// Setup NATS connection
 		nc, err = controllers.GetNATSConn()
 		if err != nil {
-			return err
+			// return err
 		}
 		if err := setupNATSSubscriptions(nc, k8sClient, setupLog); err != nil {
-			return err
+			// return err
 		}
 		setupLog.Info("NATS connection established")
 
@@ -119,7 +119,13 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		return err
 	}
 
-	if err := startMetricsServer(mgr); err != nil {
+	// Add liveness / readiness endpoints
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up health check")
+		return err
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to set up ready check")
 		return err
 	}
 
@@ -138,14 +144,40 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 }
 
 // initK8sManager initializes the Kubernetes manager and client
-func initK8sManager() (manager.Manager, client.Client, error) {
+func initK8sManager(logger *zap.SugaredLogger, cli *MainCommand) (manager.Manager, client.Client, error) {
+	var tlsOpts []func(*tls.Config)
+
+	// if the enable-http2 flag is false (the default), http/2 should be disabled
+	// due to its vulnerabilities. More specifically, disabling http/2 will
+	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and
+	// Rapid Reset CVEs. For more information see:
+	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
+	// - https://github.com/advisories/GHSA-4374-p667-p6c8
+	disableHTTP2 := func(c *tls.Config) {
+		logger.Info("disabling http/2")
+		c.NextProtos = []string{"http/1.1"}
+	}
+
+	if !cli.EnableHTTP2 {
+		tlsOpts = append(tlsOpts, disableHTTP2)
+	}
+
+	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
+	// More info:
+	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/metrics/server
+	// - https://book.kubebuilder.io/reference/metrics.html
+	metricsServerOptions := metricsserver.Options{
+		BindAddress:   cli.MetricsAddr,
+		SecureServing: cli.SecureMetrics,
+		TLSOpts:       tlsOpts,
+	}
+
 	cfg := config.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: "0",
-		},
-		LeaderElection: false,
+		Scheme:                 scheme,
+		Metrics:                metricsServerOptions,
+		HealthProbeBindAddress: cli.ProbeAddr,
+		LeaderElection:         false,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -284,31 +316,6 @@ func setupNATSSubscriptions(nc *nats.Conn, k8sClient client.Client, setupLog *za
 	}
 
 	return nil
-}
-
-// startMetricsServer starts the Prometheus metrics server
-func startMetricsServer(mgr manager.Manager) error {
-	return mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-
-		srv := &http.Server{
-			Addr:    ":2112",
-			Handler: mux,
-		}
-
-		// graceful shutdown when mgr stops
-		go func() {
-			<-ctx.Done()
-			_ = srv.Shutdown(context.Background())
-		}()
-
-		log.Println("[resolver] metrics server listening on :2112/metrics")
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			return err
-		}
-		return nil
-	}))
 }
 
 // maybeUpdateCache loads the JWT from the referenced secret and updates map
