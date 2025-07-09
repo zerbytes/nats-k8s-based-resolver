@@ -17,6 +17,7 @@ manager:
 
     # -- Command-line arguments for manager container
     args:
+      - manager
       - "--leader-elect"
       - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
@@ -94,6 +95,7 @@ resolver:
 
     # -- Command-line arguments for resolver container
     args:
+      - resolver
       - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
       - "--nats-url={{ .Values.natsURL }}"
