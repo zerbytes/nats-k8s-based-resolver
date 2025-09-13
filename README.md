@@ -238,7 +238,7 @@ Contributions are welcome! A contributing guide will be added soon.
 
 ## Development
 
-Golang 1.24.4+ is required to build this project.
+Golang 1.25.1+ is required to build this project.
 
 ```bash
 # clone repo & init
