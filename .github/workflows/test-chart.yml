@@ -83,4 +83,4 @@ jobs:
 
       - name: Check Presence of ServiceMonitor
         run: |
-          kubectl wait --namespace operator-system --for=jsonpath='{.kind}'=ServiceMonitor servicemonitor/nats-k8s-based-resolver-manager-metrics-monitor
+          kubectl wait --namespace operator-system --for=jsonpath='{.kind}'=ServiceMonitor servicemonitor/my-release-manager-metrics-monitor
