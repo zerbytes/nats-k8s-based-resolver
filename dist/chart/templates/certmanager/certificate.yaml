@@ -25,9 +25,9 @@ metadata:
     {{- include "chart.labels" . | nindent 4 }}
 spec:
   dnsNames:
-    - nats-k8s-based-resolver.{{ .Release.Namespace }}.svc
-    - nats-k8s-based-resolver.{{ .Release.Namespace }}.svc.cluster.local
-    - nats-k8s-based-resolver-webhook-service.{{ .Release.Namespace }}.svc
+    - {{ include "chart.release" . }}.{{ .Release.Namespace }}.svc
+    - {{ include "chart.release" . }}.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "chart.release" . }}-webhook-service.{{ .Release.Namespace }}.svc
   issuerRef:
     kind: Issuer
     name: selfsigned-issuer
@@ -49,9 +49,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
-    - nats-k8s-based-resolver.{{ .Release.Namespace }}.svc
-    - nats-k8s-based-resolver.{{ .Release.Namespace }}.svc.cluster.local
-    - nats-k8s-based-resolver-metrics-service.{{ .Release.Namespace }}.svc
+    - {{ include "chart.release" . }}.{{ .Release.Namespace }}.svc
+    - {{ include "chart.release" . }}.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "chart.release" . }}-metrics-service.{{ .Release.Namespace }}.svc
   issuerRef:
     kind: Issuer
     name: selfsigned-issuer

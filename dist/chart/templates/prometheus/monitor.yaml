@@ -5,7 +5,7 @@ kind: ServiceMonitor
 metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-  name: nats-k8s-based-resolver-manager-metrics-monitor
+  name: {{ include "chart.release" . }}-manager-metrics-monitor
   namespace: {{ .Release.Namespace }}
 spec:
   endpoints:
@@ -15,7 +15,7 @@ spec:
       bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
       tlsConfig:
         {{- if .Values.certmanager.enable }}
-        serverName: nats-k8s-based-resolver-manager-metrics-service.{{ .Release.Namespace }}.svc
+        serverName: {{ include "chart.release" . }}-manager-metrics-service.{{ .Release.Namespace }}.svc
         # Apply secure TLS configuration with cert-manager
         insecureSkipVerify: false
         ca:
@@ -42,7 +42,7 @@ kind: ServiceMonitor
 metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-  name: nats-k8s-based-resolver-resolver-metrics-monitor
+  name: {{ include "chart.release" . }}-resolver-metrics-monitor
   namespace: {{ .Release.Namespace }}
 spec:
   endpoints:
@@ -52,7 +52,7 @@ spec:
       bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
       tlsConfig:
         {{- if .Values.certmanager.enable }}
-        serverName: nats-k8s-based-resolver-resolver-metrics-service.{{ .Release.Namespace }}.svc
+        serverName: {{ include "chart.release" . }}-resolver-metrics-service.{{ .Release.Namespace }}.svc
         # Apply secure TLS configuration with cert-manager
         insecureSkipVerify: false
         ca:

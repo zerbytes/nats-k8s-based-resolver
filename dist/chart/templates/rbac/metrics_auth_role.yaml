@@ -4,7 +4,7 @@ kind: ClusterRole
 metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-  name: nats-k8s-based-resolver-metrics-auth-role
+  name: {{ include "chart.release" . }}-metrics-auth-role
 rules:
 - apiGroups:
   - authentication.k8s.io

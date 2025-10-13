@@ -35,3 +35,5 @@ config.yaml
 /kubebuilder
 
 .direnv/
+
+nats-server*/

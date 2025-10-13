@@ -73,15 +73,14 @@ jobs:
         run: |
           kubectl wait --namespace monitoring --for=condition=available --timeout=300s deployment/prometheus-server
 
-      - name: Install Helm chart for project
+      - name: Install Helm chart for project with Prometheus enabled
         run: |
-          helm install my-release ./dist/chart --create-namespace --namespace operator-system
+          helm install my-release ./dist/chart --create-namespace --namespace operator-system --set=prometheus.enable=true
 
       - name: Check Helm release status
         run: |
           helm status my-release --namespace operator-system
 
-# TODO: Uncomment if prometheus.enabled is set to true to confirm that the ServiceMonitor gets created
-#      - name: Check Presence of ServiceMonitor
-#        run: |
-#          kubectl wait --namespace operator-system --for=jsonpath='{.kind}'=ServiceMonitor servicemonitor/operator-controller-manager-metrics-monitor
+      - name: Check Presence of ServiceMonitor
+        run: |
+          kubectl wait --namespace operator-system --for=jsonpath='{.kind}'=ServiceMonitor servicemonitor/nats-k8s-based-resolver-manager-metrics-monitor

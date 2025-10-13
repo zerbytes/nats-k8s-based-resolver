@@ -1,7 +1,10 @@
 apiVersion: v2
 name: nats-k8s-based-resolver
-description: A Helm chart to deploy the nats-k8s-based-resolver manager and resolver.
+description: |
+  A Helm chart to deploy the nats-k8s-based-resolver manager and resolver components. Needs a NATS server or cluster configured to use the resolver's keys to work properly.
+  For information on configuring your NATS server/cluster, please refer to the "Configure NATS To Use The Generated Secrets" section of
+  [the project's README](https://github.com/zerbytes/nats-k8s-based-resolver/blob/main/README.md#configure-nats-to-use-the-generated-secrets).
 type: application
 version: 0.3.14
 appVersion: "v0.2.0"
-icon: https://raw.githubusercontent.com/zerbytes/nats-k8s-based-resolver/main/.github/readme/logo.png
+icon: "https://raw.githubusercontent.com/zerbytes/nats-k8s-based-resolver/main/.github/readme/logo.png"

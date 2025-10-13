@@ -13,6 +13,16 @@
 {{- end }}
 
 
+{{- define "chart.release" -}}
+{{- if .Values.nameOverride }}
+  {{ .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- else if .Release.Name }}
+  {{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}
+  nats-k8s-based-resolver
+{{- end }}
+{{- end }}
+
 {{- define "chart.labels" -}}
 {{- if .Chart.AppVersion -}}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
