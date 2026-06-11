@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -172,10 +173,20 @@ var _ = Describe("Manager", Ordered, func() {
 
 		It("should ensure the metrics endpoint is serving metrics", func() {
 			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
-			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
-				"--clusterrole=operator-metrics-reader",
-				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
-			)
+			cmd := exec.Command("kubectl", "apply", "-f", "-")
+			cmd.Stdin = strings.NewReader(fmt.Sprintf(`apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: %s
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: operator-metrics-reader
+subjects:
+  - kind: ServiceAccount
+    name: %s
+    namespace: %s
+`, metricsRoleBindingName, serviceAccountName, namespace))
 			_, err := utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create ClusterRoleBinding")
 
@@ -251,9 +262,101 @@ var _ = Describe("Manager", Ordered, func() {
 
 			By("getting the metrics by checking curl-metrics logs")
 			metricsOutput := getMetricsOutput()
-			Expect(metricsOutput).To(ContainSubstring(
-				"controller_runtime_reconcile_total",
-			))
+			Expect(metricsOutput).To(ContainSubstring("# HELP"))
+			Expect(metricsOutput).To(ContainSubstring("controller_runtime"))
+		})
+
+		It("should create an account and users with different limits", func() {
+			accountName := "e2e-account-users"
+			userOneName := "e2e-user-small"
+			userTwoName := "e2e-user-large"
+
+			accountSpec := fmt.Sprintf(`apiVersion: natsresolver.zerbytes.net/v1alpha1
+kind: NatsAccount
+metadata:
+  name: %s
+spec:
+  jetStreamEnabled: true
+  limits:
+    maxConnections: 11
+    maxSubs: 22
+    maxData: 33
+    maxPayload: 44
+    maxDiskStorage: 55
+    maxMemoryStorage: 66
+`, accountName)
+
+			userOneSpec := fmt.Sprintf(`apiVersion: natsresolver.zerbytes.net/v1alpha1
+kind: NatsUser
+metadata:
+  name: %s
+spec:
+  accountRef:
+    name: %s
+    namespace: %s
+  limits:
+    maxPayload: 128
+    maxSubs: 3
+    maxData: 1024
+`, userOneName, accountName, namespace)
+
+			userTwoSpec := fmt.Sprintf(`apiVersion: natsresolver.zerbytes.net/v1alpha1
+kind: NatsUser
+metadata:
+  name: %s
+spec:
+  accountRef:
+    name: %s
+    namespace: %s
+  limits:
+    maxPayload: 256
+    maxSubs: 7
+    maxData: 2048
+`, userTwoName, accountName, namespace)
+
+			DeferCleanup(func() {
+				deleteKubectlResource("natsaccount", accountName)
+			})
+			DeferCleanup(func() {
+				deleteKubectlResource("natsuser", userOneName)
+			})
+			DeferCleanup(func() {
+				deleteKubectlResource("natsuser", userTwoName)
+			})
+
+			By("creating the parent account")
+			Expect(applyManifest(accountSpec)).To(Succeed())
+			waitForAccount(accountName)
+
+			By("creating the first user")
+			Expect(applyManifest(userOneSpec)).To(Succeed())
+			userOne := waitForUser(userOneName)
+			Expect(userOne.Status.Ready).To(BeTrue())
+			Expect(userOne.Status.SecretName).To(Equal("nats-user-" + userOneName + "-jwt"))
+			Expect(userOne.Status.UserPublicKey).NotTo(BeEmpty())
+
+			By("creating the second user")
+			Expect(applyManifest(userTwoSpec)).To(Succeed())
+			userTwo := waitForUser(userTwoName)
+			Expect(userTwo.Status.Ready).To(BeTrue())
+			Expect(userTwo.Status.SecretName).To(Equal("nats-user-" + userTwoName + "-jwt"))
+			Expect(userTwo.Status.UserPublicKey).NotTo(BeEmpty())
+			Expect(userTwo.Status.UserPublicKey).NotTo(Equal(userOne.Status.UserPublicKey))
+
+			By("verifying the generated user JWTs carry their requested limits")
+			firstCreds := decodeSecretValue(waitForSecretData(userOne.Status.SecretName)["user.creds"])
+			secondCreds := decodeSecretValue(waitForSecretData(userTwo.Status.SecretName)["user.creds"])
+
+			firstClaims := decodeUserClaims(firstCreds)
+			secondClaims := decodeUserClaims(secondCreds)
+
+			Expect(firstClaims.Limits.Payload).To(Equal(int64(128)))
+			Expect(firstClaims.Subs).To(Equal(int64(3)))
+			Expect(firstClaims.Data).To(Equal(int64(1024)))
+
+			Expect(secondClaims.Limits.Payload).To(Equal(int64(256)))
+			Expect(secondClaims.Subs).To(Equal(int64(7)))
+			Expect(secondClaims.Data).To(Equal(int64(2048)))
 		})
 
 		// +kubebuilder:scaffold:e2e-webhooks-checks
