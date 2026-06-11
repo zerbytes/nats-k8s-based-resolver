@@ -31,7 +31,7 @@ jobs:
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/zerbytes/nats-k8s-based-resolver
 
@@ -93,7 +93,7 @@ jobs:
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/zerbytes/nats-k8s-based-resolver
           tags: |
