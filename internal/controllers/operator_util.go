@@ -35,8 +35,8 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, operatorNs stri
 
 	// If secret exists and has seed&jwt, reuse
 	if err == nil {
-		seed, okSeed := sec.Data["seed"]
-		jwtB, okJwt := sec.Data["jwt"]
+		seed, okSeed := sec.Data[Seed]
+		jwtB, okJwt := sec.Data[JWT]
 		if okSeed && okJwt {
 			kp, err := nkeys.FromSeed(seed)
 			if err == nil {
@@ -60,9 +60,9 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, operatorNs stri
 	newSec.Namespace = operatorNs
 	newSec.Type = corev1.SecretTypeOpaque
 	newSec.StringData = map[string]string{
-		"seed": string(seed),
-		"jwt":  jwtStr,
-		"pub":  pub,
+		Seed:  string(seed),
+		JWT:   jwtStr,
+		"pub": pub,
 	}
 	if newSec.Labels == nil {
 		newSec.Labels = map[string]string{}
@@ -91,8 +91,8 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operato
 
 	// (A) reuse existing if present & no rotation requested
 	if err == nil && !rotate {
-		seedB, okSeed := sec.Data["seed"]
-		jwtB, okJwt := sec.Data["jwt"]
+		seedB, okSeed := sec.Data[Seed]
+		jwtB, okJwt := sec.Data[JWT]
 		pubB, okPub := sec.Data["pub"]
 		if okSeed && okJwt && okPub {
 			sysKP, err := nkeys.FromSeed(seedB)
@@ -141,9 +141,9 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operato
 
 	// build / update Secret data map
 	data := map[string][]byte{
-		"seed": sysSeed,
-		"jwt":  []byte(sysJWT),
-		"pub":  []byte(sysPub),
+		Seed:  sysSeed,
+		JWT:   []byte(sysJWT),
+		"pub": []byte(sysPub),
 	}
 
 	if errors.IsNotFound(err) {

@@ -70,14 +70,14 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if !first {
 		// Try to parse existing secret
-		if b := sec.Data["seed"]; len(b) > 0 {
+		if b := sec.Data[Seed]; len(b) > 0 {
 			if k, e := nkeys.FromSeed(b); e == nil {
 				kp = k
 				pubKey, _ = kp.PublicKey()
 				seedStr = string(b)
 			}
 		}
-		jwtStr = string(sec.Data["jwt"])
+		jwtStr = string(sec.Data[JWT])
 	}
 
 	if kp == nil { // no keypair found
@@ -140,11 +140,14 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		sec.Type = corev1.SecretTypeOpaque
 		sec.Name = secretName
 		sec.Namespace = req.Namespace
-		sec.Data = map[string][]byte{"jwt": []byte(jwtStr), "seed": []byte(seedStr)}
+		sec.Data = map[string][]byte{
+			JWT:  []byte(jwtStr),
+			Seed: []byte(seedStr),
+		}
 		if sec.Labels == nil {
 			sec.Labels = map[string]string{}
 		}
-		sec.Labels["app.kubernetes.io/managed-by"] = "nats-account-operator"
+		sec.Labels["app.kubernetes.io/managed-by"] = AccountOperatorName
 		sec.Labels["zerbytes.net/account"] = acct.Name
 		_ = ctrl.SetControllerReference(&acct, &sec, r.Scheme)
 		if err := r.Create(ctx, &sec); err != nil {
@@ -152,12 +155,12 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	} else if changed {
 		dirty := false
-		if !bytes.Equal(sec.Data["jwt"], []byte(jwtStr)) {
-			sec.Data["jwt"] = []byte(jwtStr)
+		if !bytes.Equal(sec.Data[JWT], []byte(jwtStr)) {
+			sec.Data[JWT] = []byte(jwtStr)
 			dirty = true
 		}
-		if !bytes.Equal(sec.Data["seed"], []byte(seedStr)) {
-			sec.Data["seed"] = []byte(seedStr)
+		if !bytes.Equal(sec.Data[Seed], []byte(seedStr)) {
+			sec.Data[Seed] = []byte(seedStr)
 			dirty = true
 		}
 		if dirty {

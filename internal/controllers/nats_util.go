@@ -57,7 +57,7 @@ func GetNATSConn() (*nats.Conn, error) {
 		if natsURL == "" {
 			natsURL = "nats://nats:4222" // sensible default
 		}
-		opts := []nats.Option{nats.Name("nats-account-operator")}
+		opts := []nats.Option{nats.Name(AccountOperatorName)}
 		if natsCreds != "" {
 			opts = append(opts, nats.UserCredentials(natsCreds))
 		}
@@ -126,7 +126,7 @@ func EnsureSysResolverUser(ctx context.Context, c client.Client, ns string,
 			Name:      secretName,
 			Namespace: ns,
 			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "nats-account-operator",
+				"app.kubernetes.io/managed-by": AccountOperatorName,
 			},
 		},
 		Type: corev1.SecretTypeOpaque,

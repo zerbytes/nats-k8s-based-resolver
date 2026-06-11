@@ -62,7 +62,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err := r.Get(ctx, types.NamespacedName{Name: acct.Status.SecretName, Namespace: acct.Namespace}, &acctSec); err != nil {
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
-	accSeed := acctSec.Data["seed"]
+	accSeed := acctSec.Data[Seed]
 	accKp, err := nkeys.FromSeed(accSeed)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -153,7 +153,7 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if sec.Labels == nil {
 			sec.Labels = map[string]string{}
 		}
-		sec.Labels["app.kubernetes.io/managed-by"] = "nats-account-operator"
+		sec.Labels["app.kubernetes.io/managed-by"] = AccountOperatorName
 		sec.Labels["zerbytes.net/account"] = acct.Name
 		_ = ctrl.SetControllerReference(&user, &sec, r.Scheme)
 		if err := r.Create(ctx, &sec); err != nil {
