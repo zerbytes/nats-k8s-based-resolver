@@ -33,6 +33,8 @@ type MainCommand struct {
 
 	Version kong.VersionFlag `name:"version" short:"v" help:"Print the version of the NATS-based resolver."`
 
+	AccountClaimDelete bool `name:"account-claim-delete" negatable:"" env:"ACCOUNT_CLAIM_DELETE" alias:"jwtdel" help:"If disabled, account controller will not send claims delete event for deleted accounts."`
+
 	PodNamespace string `required:"" env:"POD_NAMESPACE" help:"The namespace of the pod running this controller manager. This is used to determine where to look and store for the operator secret."`
 
 	NatsURL   string `required:"" env:"NATS_URL" help:"NATS server URL, e.g. nats://localhost:4222"`

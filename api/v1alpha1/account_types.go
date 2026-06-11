@@ -99,7 +99,3 @@ type NatsAccountList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []NatsAccount `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&NatsAccount{}, &NatsAccountList{})
-}

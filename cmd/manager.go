@@ -155,7 +155,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		client := mgr.GetClient()
 
 		// Operator key
-		opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, client, cli.PodNamespace)
+		opSec, opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, client, cli.PodNamespace)
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		controllers.SetNatsCreds(cli.NatsCreds)
 
 		// $SYS account (no rotation on first boot)
-		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.NatsURL, client, cli.PodNamespace, opKP, false); err != nil {
+		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.NatsURL, client, cli.PodNamespace, opSec, opKP, false, mgr.GetScheme()); err != nil {
 			return fmt.Errorf("bootstrap sys account: %w", err)
 		}
 
@@ -178,6 +178,8 @@ func (c *ManagerCmd) Run(cli *MainCommand) error {
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
 		OperatorNS: cli.PodNamespace,
+
+		SendClaimDeleteEvent: cli.AccountClaimDelete,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NatsAccount")
 		return err

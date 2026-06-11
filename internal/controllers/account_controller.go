@@ -1,22 +1,24 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	natsjwt "github.com/nats-io/jwt/v2"
 	nkeys "github.com/nats-io/nkeys"
+	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+const OperatorFinalizerName = natsv1alpha1.GroupName + "/finalizer"
 
 // +kubebuilder:rbac:groups=natsresolver.zerbytes.net,resources=natsaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=natsresolver.zerbytes.net,resources=natsaccounts/status,verbs=get;update;patch
@@ -28,6 +30,8 @@ type NatsAccountReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
 	OperatorNS string
+
+	SendClaimDeleteEvent bool
 }
 
 //nolint:gocyclo
@@ -35,8 +39,8 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	log := ctrl.LoggerFrom(ctx)
 
 	// 1. Fetch NatsAccount CR
-	var acct natsv1alpha1.NatsAccount
-	if err := r.Get(ctx, req.NamespacedName, &acct); err != nil {
+	acct := &natsv1alpha1.NatsAccount{}
+	if err := r.Get(ctx, req.NamespacedName, acct); err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
@@ -45,12 +49,50 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	log.Info("reconciling NatsAccount", "name", acct.Name, "namespace", acct.Namespace)
 
-	desired := accDesiredFromSpec(&acct)
+	// Examine DeletionTimestamp to determine if object is under deletion
+	if acct.GetDeletionTimestamp() == nil || acct.GetDeletionTimestamp().IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then let's add the finalizer and update the object. This is equivalent
+		// to registering our finalizer.
+		if !controllerutil.ContainsFinalizer(acct, OperatorFinalizerName) {
+			controllerutil.AddFinalizer(acct, OperatorFinalizerName)
+			if err := r.Update(ctx, acct); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(acct, OperatorFinalizerName) {
+
+			// Our finalizer is present, so let's handle any external dependency
+			if err := r.deleteExternalResources(ctx, log, acct); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried.
+				log.Error(err, "failed to delete external resources")
+				return ctrl.Result{}, err
+			}
+
+			// Remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(acct, OperatorFinalizerName)
+			if err := r.Update(ctx, acct); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		// Stop reconciliation as the item is being deleted
+		return ctrl.Result{}, nil
+	}
+
+	desired := accDesiredFromSpec(acct)
 
 	// 2. Determine if we need new creds or can reuse existing
 	secretName := fmt.Sprintf("nats-account-%s-jwt", acct.Name)
 	var sec corev1.Secret
-	first := errors.IsNotFound(r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: req.Namespace}, &sec))
+	exists, err := getSecret(ctx, r.Client, types.NamespacedName{Name: secretName, Namespace: req.Namespace}, &sec)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	first := !exists
 
 	var (
 		kp       nkeys.KeyPair
@@ -62,7 +104,7 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	)
 
 	// Always get the current operator keypair and public key
-	opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, r.OperatorNS)
+	_, opKp, _, err := GetOrCreateOperatorKP(ctx, r.Client, r.OperatorNS)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -137,33 +179,22 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if first {
-		sec.Type = corev1.SecretTypeOpaque
-		sec.Name = secretName
-		sec.Namespace = req.Namespace
-		sec.Data = map[string][]byte{
+		if err := prepareManagedSecret(&sec, acct, r.Scheme, secretName, req.Namespace, map[string]string{
+			natsv1alpha1.GroupName + "/account": acct.Name,
+		}, map[string][]byte{
 			JWT:  []byte(jwtStr),
 			Seed: []byte(seedStr),
+		}); err != nil {
+			return ctrl.Result{}, err
 		}
-		if sec.Labels == nil {
-			sec.Labels = map[string]string{}
-		}
-		sec.Labels["app.kubernetes.io/managed-by"] = AccountOperatorName
-		sec.Labels["zerbytes.net/account"] = acct.Name
-		_ = ctrl.SetControllerReference(&acct, &sec, r.Scheme)
 		if err := r.Create(ctx, &sec); err != nil {
 			return ctrl.Result{}, err
 		}
 	} else if changed {
-		dirty := false
-		if !bytes.Equal(sec.Data[JWT], []byte(jwtStr)) {
-			sec.Data[JWT] = []byte(jwtStr)
-			dirty = true
-		}
-		if !bytes.Equal(sec.Data[Seed], []byte(seedStr)) {
-			sec.Data[Seed] = []byte(seedStr)
-			dirty = true
-		}
-		if dirty {
+		if updateSecretData(&sec, map[string][]byte{
+			JWT:  []byte(jwtStr),
+			Seed: []byte(seedStr),
+		}) {
 			if err := r.Update(ctx, &sec); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -176,14 +207,14 @@ func (r *NatsAccountReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		acct.Status.AccountPublicKey = pubKey
 		acct.Status.SecretName = secretName
 		acct.Status.SigningKeyPublicKey = opPubKey
-		if err := r.Status().Update(ctx, &acct); err != nil {
+		if err := r.Status().Update(ctx, acct); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	// 5. Push JWT to NATS if changed
 	if changed {
-		if err := pushJWT(jwtStr); err != nil {
+		if err := pushJWT(ctx, jwtStr); err != nil {
 			log.Error(err, "failed to push account JWT to NATS, will retry later", "account", acct.Name)
 			return ctrl.Result{}, err
 		}
@@ -321,6 +352,19 @@ func accLimitsFromClaims(ac *natsjwt.AccountClaims) accLimits {
 	l.memoryStorage = ac.Limits.MemoryStorage
 	l.jetstream = ac.Limits.DiskStorage != 0 || ac.Limits.MemoryStorage != 0
 	return l
+}
+
+func (r *NatsAccountReconciler) deleteExternalResources(ctx context.Context, log logr.Logger, acct *natsv1alpha1.NatsAccount) error {
+	if !r.SendClaimDeleteEvent {
+		return nil
+	}
+
+	if err := deleteJWT(ctx, r.Client, r.OperatorNS, acct.Status.AccountPublicKey); err != nil {
+		log.Error(err, "failed to push account JWT to NATS, will retry later", "account", acct.Name)
+		return err
+	}
+
+	return nil
 }
 
 func (r *NatsAccountReconciler) SetupWithManager(mgr ctrl.Manager) error {

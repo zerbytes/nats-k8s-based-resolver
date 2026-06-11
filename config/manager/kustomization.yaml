@@ -4,8 +4,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: ghcr.io/zerbytes/nats-k8s-based-resolver
-  newTag: latest
+  newName: example.com/nats-k8s-based-resolver
+  newTag: v0.0.1
 
 
 patches:

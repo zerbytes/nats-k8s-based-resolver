@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	natsjwt "github.com/nats-io/jwt/v2"
@@ -72,7 +70,11 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// 4. Determine if we need new creds or can reuse existing
 	secretName := fmt.Sprintf("nats-user-%s-jwt", user.Name)
 	var sec corev1.Secret
-	first := errors.IsNotFound(r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: req.Namespace}, &sec))
+	exists, err := getSecret(ctx, r.Client, types.NamespacedName{Name: secretName, Namespace: req.Namespace}, &sec)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	first := !exists
 
 	var (
 		userKp  nkeys.KeyPair
@@ -86,14 +88,11 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if !first {
 		// Try to parse existing creds
 		creds = string(sec.Data["user.creds"])
-		parts := strings.Split(creds, "\n")
-		if len(parts) >= 2 {
-			jwtStr, seedStr = extractJWTandSeed(creds)
-			if jwtStr != "" && seedStr != "" {
-				if kp, e := nkeys.FromSeed([]byte(seedStr)); e == nil {
-					userKp = kp
-					pubKey, _ = userKp.PublicKey()
-				}
+		jwtStr, seedStr = extractJWTandSeed(creds)
+		if jwtStr != "" && seedStr != "" {
+			if kp, e := nkeys.FromSeed([]byte(seedStr)); e == nil {
+				userKp = kp
+				pubKey, _ = userKp.PublicKey()
 			}
 		}
 	}
@@ -144,24 +143,20 @@ func (r *NatsUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	// 5. Create or update Secret
 	if first {
-		sec.Type = corev1.SecretTypeOpaque
-		sec.Name = secretName
-		sec.Namespace = req.Namespace
-		sec.Data = map[string][]byte{
+		if err := prepareManagedSecret(&sec, &user, r.Scheme, secretName, req.Namespace, map[string]string{
+			natsv1alpha1.GroupName + "/account": acct.Name,
+		}, map[string][]byte{
 			"user.creds": []byte(creds),
+		}); err != nil {
+			return ctrl.Result{}, err
 		}
-		if sec.Labels == nil {
-			sec.Labels = map[string]string{}
-		}
-		sec.Labels["app.kubernetes.io/managed-by"] = AccountOperatorName
-		sec.Labels["zerbytes.net/account"] = acct.Name
-		_ = ctrl.SetControllerReference(&user, &sec, r.Scheme)
 		if err := r.Create(ctx, &sec); err != nil {
 			return ctrl.Result{}, err
 		}
 	} else if changed {
-		if !bytes.Equal(sec.Data["user.creds"], []byte(creds)) {
-			sec.Data["user.creds"] = []byte(creds)
+		if updateSecretData(&sec, map[string][]byte{
+			"user.creds": []byte(creds),
+		}) {
 			if err := r.Update(ctx, &sec); err != nil {
 				return ctrl.Result{}, err
 			}

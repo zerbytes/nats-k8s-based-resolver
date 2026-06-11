@@ -86,7 +86,7 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		client := mgr.GetClient()
 
 		// Operator key
-		opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, client, cli.PodNamespace)
+		opSec, opKP, _, err := controllers.GetOrCreateOperatorKP(ctx, client, cli.PodNamespace)
 		if err != nil {
 			return err
 		}
@@ -95,7 +95,7 @@ func (c *ResolverCmd) Run(cli *MainCommand) error {
 		controllers.SetNatsCreds(cli.NatsCreds)
 
 		// $SYS account (no rotation on first boot)
-		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.NatsURL, client, cli.PodNamespace, opKP, false); err != nil {
+		if _, _, _, _, err := controllers.EnsureSysAccount(ctx, cli.NatsURL, client, cli.PodNamespace, opSec, opKP, false, mgr.GetScheme()); err != nil {
 			return fmt.Errorf("bootstrap sys account: %w", err)
 		}
 

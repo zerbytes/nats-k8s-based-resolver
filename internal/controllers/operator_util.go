@@ -7,8 +7,10 @@ import (
 
 	natsjwt "github.com/nats-io/jwt/v2"
 	nkeys "github.com/nats-io/nkeys"
+	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -20,8 +22,8 @@ const (
 )
 
 // GetOrCreateOperatorKP ensures a Secret with operator seed & jwt exists and
-// returns a loaded nkeys.KeyPair plus JWT string.
-func GetOrCreateOperatorKP(ctx context.Context, c client.Client, operatorNs string) (nkeys.KeyPair, string, error) {
+// returns the Secret, loaded nkeys.KeyPair, and JWT string.
+func GetOrCreateOperatorKP(ctx context.Context, c client.Client, operatorNs string) (*corev1.Secret, nkeys.KeyPair, string, error) {
 	secretName := os.Getenv("OPERATOR_SECRET_NAME")
 	if secretName == "" {
 		secretName = operatorSecretDefault
@@ -30,7 +32,7 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, operatorNs stri
 	var sec corev1.Secret
 	err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: operatorNs}, &sec)
 	if err != nil && !errors.IsNotFound(err) {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 
 	// If secret exists and has seed&jwt, reuse
@@ -40,7 +42,7 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, operatorNs stri
 		if okSeed && okJwt {
 			kp, err := nkeys.FromSeed(seed)
 			if err == nil {
-				return kp, string(jwtB), nil
+				return &sec, kp, string(jwtB), nil
 			}
 		}
 	}
@@ -71,21 +73,21 @@ func GetOrCreateOperatorKP(ctx context.Context, c client.Client, operatorNs stri
 
 	if errors.IsNotFound(err) {
 		if err := c.Create(ctx, newSec); err != nil {
-			return nil, "", err
+			return nil, nil, "", err
 		}
 	} else {
 		if err := c.Update(ctx, newSec); err != nil {
-			return nil, "", err
+			return nil, nil, "", err
 		}
 	}
 
-	return kp, jwtStr, nil
+	return newSec, kp, jwtStr, nil
 }
 
 // EnsureSysAccount returns (sysKP, sysJWT string, sysPub string).
 // If rotate==true it generates a *new* account keypair & JWT, replacing
 // whatever is stored in the Secret.
-func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operatorNs string, opKp nkeys.KeyPair, rotate bool) (nkeys.KeyPair, string, string, string, error) {
+func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operatorNs string, opOwner *corev1.Secret, opKp nkeys.KeyPair, rotate bool, scheme *runtime.Scheme) (nkeys.KeyPair, string, string, string, error) {
 	var sec corev1.Secret
 	err := c.Get(ctx, types.NamespacedName{Name: sysSecretName, Namespace: operatorNs}, &sec)
 
@@ -98,7 +100,7 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operato
 			sysKP, err := nkeys.FromSeed(seedB)
 			if err == nil {
 				sysSeed, _ := sysKP.Seed()
-				sysCreds, err := ensureSysResolverUserCreds(ctx, c, operatorNs, sysSeed)
+				sysCreds, err := ensureSysResolverUserCreds(ctx, c, operatorNs, sysSeed, &sec, scheme)
 				if err != nil {
 					return nil, "", "", "", fmt.Errorf("ensure sys resolver user creds: %w", err)
 				}
@@ -120,7 +122,7 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operato
 	sysPub, _ := sysKP.PublicKey()
 
 	ac := natsjwt.NewAccountClaims(sysPub)
-	ac.Name = "$SYS"
+	ac.Name = NatsSYSAcc
 	ac.Limits = natsjwt.OperatorLimits{
 		AccountLimits: natsjwt.AccountLimits{
 			Conn:            -1,
@@ -149,10 +151,11 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operato
 	if errors.IsNotFound(err) {
 		// create Secret first time
 		newSec := &corev1.Secret{}
-		newSec.Name = sysSecretName
-		newSec.Namespace = operatorNs
-		newSec.Type = corev1.SecretTypeOpaque
-		newSec.Data = data
+		if err := prepareManagedSecret(newSec, opOwner, scheme, sysSecretName, operatorNs, map[string]string{
+			natsv1alpha1.GroupName + "/account": NatsSYSAcc,
+		}, data); err != nil {
+			return nil, "", "", "", err
+		}
 		if err := c.Create(ctx, newSec); err != nil {
 			return nil, "", "", "", err
 		}
@@ -173,7 +176,7 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operato
 	}
 
 	// Store sys resolver user creds in file
-	sysCreds, err := ensureSysResolverUserCreds(ctx, c, operatorNs, sysSeed)
+	sysCreds, err := ensureSysResolverUserCreds(ctx, c, operatorNs, sysSeed, &sec, scheme)
 	if err != nil {
 		return nil, "", "", "", fmt.Errorf("ensure sys resolver user creds: %w", err)
 	}
@@ -183,13 +186,13 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operato
 	}
 
 	// Push updated JWT to NATS immediately (best effort)
-	_ = pushJWT(sysJWT) // ignore error at bootstrap
+	_ = pushJWT(ctx, sysJWT) // ignore error at bootstrap
 
 	return sysKP, sysJWT, sysPub, sysCreds, nil
 }
 
-func ensureSysResolverUserCreds(ctx context.Context, c client.Client, operatorNs string, sysSeed []byte) (string, error) {
-	sysCreds, err := EnsureSysResolverUser(ctx, c, operatorNs, sysSeed, false)
+func ensureSysResolverUserCreds(ctx context.Context, c client.Client, operatorNs string, sysSeed []byte, owner client.Object, scheme *runtime.Scheme) (string, error) {
+	sysCreds, err := EnsureSysResolverUser(ctx, c, operatorNs, sysSeed, owner, scheme, false)
 	if err != nil {
 		return "", fmt.Errorf("bootstrap sys resolver user: %w", err)
 	}

@@ -10,11 +10,14 @@ import (
 	natsjwt "github.com/nats-io/jwt/v2"
 	"github.com/nats-io/nats.go"
 	nkeys "github.com/nats-io/nkeys"
+	natsv1alpha1 "github.com/zerbytes/nats-k8s-based-resolver/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+const NatsSYSAcc = "$SYS"
 
 const credsTemplate = `---- BEGIN NATS USER JWT ----
 %s
@@ -69,7 +72,8 @@ func GetNATSConn() (*nats.Conn, error) {
 // pushJWT publishes *any* NATS JWT (Account or User) on $SYS.REQ.CLAIMS.UPDATE.
 // NATS servers will parse and cache based on the JWT type.
 // Waits up to 2 s for an ACK but ignores the body.
-func pushJWT(jwt string) error {
+// https://docs.nats.io/running-a-nats-service/nats_admin/security/jwt#subjects-available-when-using-nats-based-resolver
+func pushJWT(ctx context.Context, jwt string) error {
 	nc, err := GetNATSConn()
 	if err != nil {
 		return err
@@ -77,8 +81,48 @@ func pushJWT(jwt string) error {
 	if !nc.IsConnected() {
 		return nc.LastError()
 	}
-	subj := "$SYS.REQ.CLAIMS.UPDATE"
-	_, err = nc.Request(subj, []byte(jwt), 2*time.Second)
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	_, err = nc.RequestWithContext(ctx, "$SYS.REQ.CLAIMS.UPDATE", []byte(jwt))
+	return err
+}
+
+// deleteJWT publishes a JWT delete event on $SYS.REQ.CLAIMS.DELETE.
+// NATS servers will only delete the JWT when `resolver` -> `allow_delete: true` is set.
+// https://docs.nats.io/running-a-nats-service/nats_admin/security/jwt#subjects-available-when-using-nats-based-resolver
+func deleteJWT(ctx context.Context, c client.Client, operatorNS string, accountID string) error {
+	if accountID == "" {
+		return fmt.Errorf("account id is required")
+	}
+
+	_, opKp, _, err := GetOrCreateOperatorKP(ctx, c, operatorNS)
+	if err != nil {
+		return err
+	}
+	opPub, err := opKp.PublicKey()
+	if err != nil {
+		return err
+	}
+
+	claim := natsjwt.NewGenericClaims(opPub)
+	claim.Data["accounts"] = []string{accountID}
+	jwt, err := claim.Encode(opKp)
+	if err != nil {
+		return err
+	}
+
+	nc, err := GetNATSConn()
+	if err != nil {
+		return err
+	}
+	if !nc.IsConnected() {
+		return nc.LastError()
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	_, err = nc.RequestWithContext(ctx, "$SYS.REQ.CLAIMS.DELETE", []byte(jwt))
 	return err
 }
 
@@ -96,7 +140,7 @@ func extractJWTandSeed(creds string) (jwt, seed string) {
 }
 
 func EnsureSysResolverUser(ctx context.Context, c client.Client, ns string,
-	sysSeed []byte, rotate bool,
+	sysSeed []byte, owner client.Object, scheme *runtime.Scheme, rotate bool,
 ) (creds string, err error) {
 	const secretName = "nats-sys-resolver-creds"
 
@@ -121,19 +165,14 @@ func EnsureSysResolverUser(ctx context.Context, c client.Client, ns string,
 	creds = fmt.Sprintf(credsTemplate, jwtStr, seed) // same template you already have
 
 	// 3. Persist in Secret
-	sec = corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: ns,
-			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": AccountOperatorName,
-			},
-		},
-		Type: corev1.SecretTypeOpaque,
-		StringData: map[string]string{
-			"resolver.creds": creds,
-		},
+	sec = corev1.Secret{}
+	if err := prepareManagedSecret(&sec, owner, scheme, secretName, ns, map[string]string{
+		natsv1alpha1.GroupName + "/account": NatsSYSAcc,
+	}, map[string][]byte{
+		"resolver.creds": []byte(creds),
+	}); err != nil {
+		return "", err
 	}
-	_ = client.IgnoreAlreadyExists(c.Create(ctx, &sec))
-	return creds, nil
+	err = client.IgnoreAlreadyExists(c.Create(ctx, &sec))
+	return creds, err
 }
