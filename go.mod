@@ -1,6 +1,6 @@
 module github.com/zerbytes/nats-k8s-based-resolver
 
-go 1.25.4
+go 1.26.3
 
 require (
 	github.com/alecthomas/kong v1.13.0
