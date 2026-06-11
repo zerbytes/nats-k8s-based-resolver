@@ -29,7 +29,7 @@ spec:
         - name: resolver
           args:
             {{- range .Values.resolver.container.args }}
-            - {{ tpl . $ }}
+            - {{ tpl . $ | quote }}
             {{- end }}
           image: {{ .Values.resolver.container.image.repository }}:{{ .Values.resolver.container.image.tag }}
           imagePullPolicy: {{ .Values.resolver.container.imagePullPolicy | default "IfNotPresent" }}

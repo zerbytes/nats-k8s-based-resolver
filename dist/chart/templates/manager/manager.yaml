@@ -29,7 +29,7 @@ spec:
         - name: manager
           args:
             {{- range .Values.manager.container.args }}
-            - {{ . }}
+            - {{ tpl . $ | quote }}
             {{- end }}
           image: {{ .Values.manager.container.image.repository }}:{{ .Values.manager.container.image.tag }}
           imagePullPolicy: {{ .Values.manager.container.imagePullPolicy | default "IfNotPresent" }}

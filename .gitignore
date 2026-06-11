@@ -33,6 +33,7 @@ config.yaml
 /nats-k8s-based-resolver
 
 /kubebuilder
+/bin/
 
 .direnv/
 
