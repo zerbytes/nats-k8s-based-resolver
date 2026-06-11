@@ -135,15 +135,6 @@ func decodeSecretValue(v string) string {
 	return string(raw)
 }
 
-func decodeAccountClaims(jwtStr string) *natsjwt.AccountClaims {
-	claim, err := natsjwt.Decode(jwtStr)
-	Expect(err).NotTo(HaveOccurred())
-
-	accountClaim, ok := claim.(*natsjwt.AccountClaims)
-	Expect(ok).To(BeTrue())
-	return accountClaim
-}
-
 func decodeUserClaims(creds string) *natsjwt.UserClaims {
 	jwtStr, seedStr := extractJWTAndSeed(creds)
 	Expect(jwtStr).NotTo(BeEmpty())
