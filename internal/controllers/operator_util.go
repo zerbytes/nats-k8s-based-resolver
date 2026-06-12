@@ -152,7 +152,7 @@ func EnsureSysAccount(ctx context.Context, nURL string, c client.Client, operato
 		// create Secret first time
 		newSec := &corev1.Secret{}
 		if err := prepareManagedSecret(newSec, opOwner, scheme, sysSecretName, operatorNs, map[string]string{
-			natsv1alpha1.GroupName + "/account": NatsSYSAcc,
+			natsv1alpha1.GroupName + "/account": accountLabelValue(NatsSYSAcc),
 		}, data); err != nil {
 			return nil, "", "", "", err
 		}

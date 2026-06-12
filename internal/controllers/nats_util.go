@@ -19,6 +19,10 @@ import (
 
 const NatsSYSAcc = "$SYS"
 
+// Kubernetes label values cannot contain '$', so use a safe representation for
+// the system account when storing it in secret metadata.
+const NatsSYSAccountLabelValue = "SYS"
+
 const credsTemplate = `---- BEGIN NATS USER JWT ----
 %s
 ------ END NATS USER JWT ------
@@ -49,6 +53,14 @@ func SetNatsURL(url string) {
 
 func SetNatsCreds(creds string) {
 	natsCreds = creds
+}
+
+func accountLabelValue(account string) string {
+	if account == NatsSYSAcc {
+		return NatsSYSAccountLabelValue
+	}
+
+	return account
 }
 
 // GetNATSConn returns a shared connection using env vars:
@@ -167,7 +179,7 @@ func EnsureSysResolverUser(ctx context.Context, c client.Client, ns string,
 	// 3. Persist in Secret
 	sec = corev1.Secret{}
 	if err := prepareManagedSecret(&sec, owner, scheme, secretName, ns, map[string]string{
-		natsv1alpha1.GroupName + "/account": NatsSYSAcc,
+		natsv1alpha1.GroupName + "/account": accountLabelValue(NatsSYSAcc),
 	}, map[string][]byte{
 		"resolver.creds": []byte(creds),
 	}); err != nil {
