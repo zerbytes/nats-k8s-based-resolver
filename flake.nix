@@ -38,8 +38,9 @@
             # https://github.com/golangci/golangci-lint
             golangci-lint
 
-            # kubebuilder
+            # k8s
             kubebuilder
+            kind
           ];
         };
       });
