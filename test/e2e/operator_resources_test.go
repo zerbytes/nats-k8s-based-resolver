@@ -39,7 +39,8 @@ func applyManifest(manifest string) error {
 }
 
 func deleteKubectlResource(kind, name string) {
-	cmd := exec.Command("kubectl", "delete", kind, name, "-n", namespace, "--ignore-not-found=true", "--wait=false")
+	cmd := exec.Command("kubectl", "delete", kind, name, "-n", namespace,
+		"--ignore-not-found=true", "--wait=true", "--timeout=2m")
 	_, err := utils.Run(cmd)
 	if err != nil {
 		_, _ = fmt.Fprintf(GinkgoWriter, "warning: failed to delete %s/%s: %v\n", kind, name, err)
