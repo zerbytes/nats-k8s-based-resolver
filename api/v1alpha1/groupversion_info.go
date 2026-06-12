@@ -39,7 +39,9 @@ var (
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&NatsAccount{},
+		&NatsAccountList{},
 		&NatsUser{},
+		&NatsUserList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
