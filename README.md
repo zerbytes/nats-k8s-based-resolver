@@ -247,6 +247,17 @@ make docker-build  # build operator & resolver images
 make docker-push   # push to your repo
 ```
 
+### Creating New Release
+
+1. Bump version in [`VERSION`](VERSION) file and the `appVersion:` in the [`dist/chart/Chart.yaml`](dist/chart/Chart.yaml).
+2. Add and commit the changes using `git add VERSION dist/chart/Chart.yaml` and `git commit`.
+3. Create `git tag vVERSION` (e.g., `git tag v0.1.0`) and push the tag using `git push --tags`.
+4. On GitHub go to [Releases -> Draft a new release](https://github.com/zerbytes/nats-k8s-based-resolver/releases/new)
+    - Choose the previously created tag.
+    - Write up a release title and description.
+    - Save the release draft.
+5. In a few minutes, the pipeline should have built release assets and published the release automatically.
+
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
