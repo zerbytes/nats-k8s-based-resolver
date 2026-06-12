@@ -19,8 +19,8 @@ import (
 
 const NatsSYSAcc = "$SYS"
 
-// Kubernetes label values cannot contain '$', so use a safe representation for
-// the system account when storing it in secret metadata.
+// NatsSYSAccountLabelValue Kubernetes label values cannot contain '$', so use a
+// safe representation for the system account when storing it in secret metadata.
 const NatsSYSAccountLabelValue = "SYS"
 
 const credsTemplate = `---- BEGIN NATS USER JWT ----
