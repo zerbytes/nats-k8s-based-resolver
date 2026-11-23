@@ -72,24 +72,26 @@ var _ = Describe("Manager", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
 	})
 
-	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
-	// and deleting the namespace.
+	// After all tests have been executed, delete custom resources while the controller is still
+	// running. NatsAccount has a finalizer that the controller removes; deleting the namespace or
+	// CRD first can terminate the controller and leave the namespace stuck in Terminating.
 	AfterAll(func() {
 		By("cleaning up the curl pod for metrics")
 		cmd := exec.Command("kubectl", "delete", "pod", "curl-metrics", "-n", namespace)
 		_, _ = utils.Run(cmd)
 
+		By("deleting custom resources before undeploying the controller-manager")
+		cmd = exec.Command("kubectl", "delete", "natsusers,natsaccounts", "--all", "-n", namespace,
+			"--ignore-not-found=true", "--wait=true", "--timeout=2m")
+		_, err := utils.Run(cmd)
+		Expect(err).NotTo(HaveOccurred(), "Failed to delete custom resources before controller teardown")
+
 		By("undeploying the controller-manager")
-		cmd = exec.Command("make", "undeploy")
-		_, _ = utils.Run(cmd)
+		// config/default already includes the CRDs, so make undeploy also removes them.
+		cmd = exec.Command("make", "undeploy", "DELETE_TIMEOUT=2m")
+		_, err = utils.Run(cmd)
+		Expect(err).NotTo(HaveOccurred(), "Failed to undeploy the controller-manager")
 
-		By("uninstalling CRDs")
-		cmd = exec.Command("make", "uninstall")
-		_, _ = utils.Run(cmd)
-
-		By("removing manager namespace")
-		cmd = exec.Command("kubectl", "delete", "ns", namespace)
-		_, _ = utils.Run(cmd)
 	})
 
 	// After each test, check for failures and collect logs, events,

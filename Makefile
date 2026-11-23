@@ -156,7 +156,7 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) --timeout=$(DELETE_TIMEOUT) -f -
 
 ##@ Dependencies
 
@@ -168,6 +168,7 @@ $(LOCALBIN):
 ## Tool Binaries
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
+DELETE_TIMEOUT ?= 5m
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
@@ -240,4 +241,3 @@ helm-docs: bin-$(HELM_DOCS) ## Use helm-docs to generate documentation from helm
 		-o README.md \
 		-t README.gotmpl.md \
 		-t _templates.gotmpl
-
